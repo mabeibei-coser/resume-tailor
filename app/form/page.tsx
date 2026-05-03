@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,13 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+// 全流程 3 步 stepper：填表 → 访谈 → 报告（loading 是过渡态，不算独立 step）
+const STEPS = [
+  { id: 1, label: "填表" },
+  { id: 2, label: "访谈" },
+  { id: 3, label: "报告" },
+];
 
 export default function FormPage() {
   const router = useRouter();
@@ -55,8 +62,10 @@ export default function FormPage() {
     },
   });
 
+  const jobTitleValue = watch("jobTitle") ?? "";
   const jdValue = watch("jd") ?? "";
   const modeValue = watch("mode") ?? "moderate";
+  const jobTitleValid = jobTitleValue.length > 0;
   const jdLen = jdValue.length;
   const jdReady = jdLen >= 20;
 
@@ -109,10 +118,13 @@ export default function FormPage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-5 pb-20 sm:px-8">
+        {/* 顶部 3 步 Stepper —— 让用户一眼看出全流程长度 */}
+        <Stepper mounted={mounted} />
+
         <h1
           className={cnFade(
             mounted,
-            "text-center font-bold leading-[1.05] tracking-tight text-[var(--navy-900)]"
+            "mt-12 text-center font-bold leading-[1.05] tracking-tight text-[var(--navy-900)]"
           )}
           style={{
             transitionDelay: "60ms",
@@ -149,36 +161,50 @@ export default function FormPage() {
             num="01"
             label="目标岗位"
             caption="Target Role"
+            required
             mounted={mounted}
             delay={140}
           >
-            <Input
-              id="jobTitle"
-              placeholder="例如：产品经理 / 前端工程师 / 财务分析"
-              autoComplete="off"
-              className="h-11 border-[var(--border)] bg-white/80 px-4 text-base sm:text-[15px] shadow-none transition-all duration-300 placeholder:text-[var(--muted-foreground)]/70 focus-visible:border-[var(--blue-400)] focus-visible:ring-[3px] focus-visible:ring-[var(--blue-200)]/60"
-              {...register("jobTitle")}
-            />
-            {errors.jobTitle && (
-              <FieldError>{errors.jobTitle.message}</FieldError>
-            )}
+            <div className="relative">
+              <Input
+                id="jobTitle"
+                placeholder="例如：产品经理 / 前端工程师 / 财务分析"
+                autoComplete="off"
+                className="h-11 border-[var(--border)] bg-white/80 px-4 pr-10 text-base sm:text-[15px] shadow-none transition-all duration-300 placeholder:text-[var(--muted-foreground)]/70 focus-visible:border-[var(--blue-500)] focus-visible:ring-[3px] focus-visible:ring-[var(--blue-500)]/12"
+                {...register("jobTitle")}
+              />
+              <span
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--semantic-positive)] transition-all duration-200",
+                  jobTitleValid
+                    ? "scale-100 opacity-100"
+                    : "scale-50 opacity-0"
+                )}
+              >
+                <Check className="size-4" strokeWidth={3} />
+              </span>
+            </div>
+            <HelperText error={errors.jobTitle?.message} />
           </FieldCard>
 
           <FieldCard
             num="02"
             label="岗位 JD"
             caption="Job Description"
+            required
             mounted={mounted}
             delay={200}
             hint={
               <span
                 className={cn(
-                  "font-mono text-[10px] tabular-nums transition-colors duration-300",
+                  "flex items-center gap-1 font-mono text-[10px] tabular-nums transition-colors duration-300",
                   jdReady
                     ? "text-[var(--semantic-positive)]"
                     : "text-[var(--muted-foreground)]"
                 )}
               >
+                {jdReady && <Check className="size-3" strokeWidth={3} />}
                 {jdLen} / 20+
               </span>
             }
@@ -188,15 +214,16 @@ export default function FormPage() {
               rows={6}
               placeholder="把招聘网站 / 猎头消息里的整段 JD 复制进来。例如：3 年以上产品经理经验，负责 SaaS 工具类产品，熟悉用户增长指标，能独立撰写 PRD……"
               {...register("jd")}
-              className="block min-h-[160px] w-full resize-y rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-base sm:text-[14px] leading-[1.7] outline-none transition-all duration-300 placeholder:text-[var(--muted-foreground)]/55 focus:border-[var(--blue-400)] focus:ring-[3px] focus:ring-[var(--blue-200)]/60"
+              className="block min-h-[160px] w-full resize-y rounded-xl border border-[var(--border)] bg-white/80 px-4 py-3 text-base sm:text-[14px] leading-[1.7] outline-none transition-all duration-300 placeholder:text-[var(--muted-foreground)]/55 focus:border-[var(--blue-500)] focus:ring-[3px] focus:ring-[var(--blue-500)]/12"
             />
-            {errors.jd && <FieldError>{errors.jd.message}</FieldError>}
+            <HelperText error={errors.jd?.message} />
           </FieldCard>
 
           <FieldCard
             num="03"
             label="上传个人简历"
             caption="Resume File"
+            required
             mounted={mounted}
             delay={260}
             variant="primary"
@@ -210,7 +237,7 @@ export default function FormPage() {
               accept=".pdf,.doc,.docx"
               maxSizeMB={5}
             />
-            {resumeError && <FieldError>{resumeError}</FieldError>}
+            <HelperText error={resumeError ?? undefined} />
           </FieldCard>
 
           <FieldCard
@@ -228,7 +255,9 @@ export default function FormPage() {
               }
             />
             <input type="hidden" {...register("mode")} />
-            {errors.mode && <FieldError>{errors.mode.message}</FieldError>}
+            {errors.mode && (
+              <HelperText error={errors.mode.message} />
+            )}
           </FieldCard>
 
           <div
@@ -241,6 +270,11 @@ export default function FormPage() {
               disabled={isSubmitting}
               className="group relative h-14 w-full overflow-hidden rounded-xl bg-[var(--blue-600)] text-base font-semibold tracking-tight text-white shadow-[0_8px_28px_-8px_oklch(0.46_0.19_252/0.55)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-px hover:bg-[var(--blue-500)] hover:shadow-[0_14px_36px_-8px_oklch(0.46_0.19_252/0.65)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
+              {/* 顶部 1px 高光 inset */}
+              <span
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-px bg-white/30"
+              />
               <span
                 aria-hidden
                 className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/0 via-white/15 to-white/0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
@@ -281,11 +315,83 @@ export default function FormPage() {
   );
 }
 
+// ============================================================================
+// Stepper —— 顶部 3 步进度
+// ============================================================================
+
+function Stepper({ mounted }: { mounted: boolean }) {
+  const current = 0; // step 1 (填表) active
+
+  return (
+    <div
+      className={cn(
+        "mx-auto flex max-w-[420px] items-center transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        mounted
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 translate-y-2"
+      )}
+    >
+      {STEPS.map((step, i) => {
+        const isActive = i === current;
+        const isDone = i < current;
+        return (
+          <Fragment key={step.id}>
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={cn(
+                  "flex size-8 items-center justify-center rounded-full text-[12px] font-semibold transition-all duration-300",
+                  isActive &&
+                    "bg-[var(--blue-500)] text-white shadow-[0_0_0_4px_oklch(0.55_0.18_250/0.15),0_4px_12px_-2px_oklch(0.55_0.18_250/0.35)]",
+                  isDone && "bg-[var(--blue-500)] text-white",
+                  !isActive &&
+                    !isDone &&
+                    "border border-[var(--blue-200)] bg-white text-[var(--blue-400)]"
+                )}
+              >
+                {isDone ? (
+                  <Check className="size-3.5" strokeWidth={3} />
+                ) : (
+                  step.id
+                )}
+              </div>
+              <span
+                className={cn(
+                  "whitespace-nowrap text-[11px] tracking-wide transition-colors duration-300",
+                  isActive
+                    ? "font-semibold text-[var(--navy-900)]"
+                    : "text-[var(--muted-foreground)]"
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={cn(
+                  "mt-[-18px] h-px flex-1 transition-colors duration-300",
+                  isDone
+                    ? "bg-[var(--blue-500)]"
+                    : "border-t border-dashed border-[var(--blue-200)]"
+                )}
+              />
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================================
+// FieldCard —— 阴影分层（静态 / hover / focus-within 三档）+ required 标记
+// ============================================================================
+
 function FieldCard({
   num,
   label,
   caption,
   hint,
+  required,
   children,
   mounted,
   delay,
@@ -295,6 +401,7 @@ function FieldCard({
   label: string;
   caption: string;
   hint?: React.ReactNode;
+  required?: boolean;
   children: React.ReactNode;
   mounted: boolean;
   delay: number;
@@ -306,10 +413,20 @@ function FieldCard({
       className={cnFade(
         mounted,
         cn(
-          "rounded-2xl backdrop-blur transition-shadow duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "rounded-2xl backdrop-blur",
           isPrimary
-            ? "border border-[var(--blue-200)] bg-white p-6 shadow-[0_4px_20px_-8px_oklch(0.55_0.18_250/0.18)] hover:shadow-[0_10px_32px_-10px_oklch(0.55_0.18_250/0.28)] sm:p-7"
-            : "border border-[var(--border)] bg-white/50 p-4 hover:bg-white/70 sm:p-5"
+            ? cn(
+                "border border-[var(--blue-200)] bg-white p-6 sm:p-7",
+                "shadow-[0_2px_8px_-2px_oklch(0.55_0.18_250/0.10)]",
+                "hover:shadow-[0_8px_24px_-4px_oklch(0.55_0.18_250/0.18)]",
+                "focus-within:border-[var(--blue-300)] focus-within:shadow-[0_12px_32px_-4px_oklch(0.55_0.18_250/0.25)]"
+              )
+            : cn(
+                "border border-[var(--border)] bg-white/55 p-4 sm:p-5",
+                "shadow-[0_1px_3px_0_oklch(0.55_0.18_250/0.04)]",
+                "hover:bg-white/75 hover:shadow-[0_4px_12px_-2px_oklch(0.55_0.18_250/0.10)]",
+                "focus-within:border-[var(--blue-300)] focus-within:bg-white focus-within:shadow-[0_8px_20px_-4px_oklch(0.55_0.18_250/0.15)]"
+              )
         )
       )}
       style={{ transitionDelay: `${delay}ms` }}
@@ -338,6 +455,14 @@ function FieldCard({
             )}
           >
             {label}
+            {required && (
+              <span
+                className="ml-1 text-[var(--destructive)]"
+                aria-hidden
+              >
+                *
+              </span>
+            )}
           </span>
           <span className="hidden font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted-foreground)] sm:inline">
             {caption}
@@ -345,16 +470,26 @@ function FieldCard({
         </div>
         {hint && <div>{hint}</div>}
       </div>
-      <div className="space-y-2">{children}</div>
+      <div className="space-y-1.5">{children}</div>
     </section>
   );
 }
 
-function FieldError({ children }: { children: React.ReactNode }) {
+// ============================================================================
+// HelperText —— 永远预留 16px 高度，错误时填红字（避免布局抖动）
+// ============================================================================
+
+function HelperText({ error }: { error?: string }) {
   return (
-    <p className="flex items-center gap-1.5 text-xs text-[var(--destructive)]">
-      <span className="size-1 rounded-full bg-[var(--destructive)]" />
-      {children}
+    <p className="flex min-h-[16px] items-center gap-1.5 px-1 text-[11.5px] leading-tight">
+      {error ? (
+        <>
+          <span className="size-1 shrink-0 rounded-full bg-[var(--destructive)]" />
+          <span className="text-[var(--destructive)]">{error}</span>
+        </>
+      ) : (
+        <span aria-hidden>&nbsp;</span>
+      )}
     </p>
   );
 }
