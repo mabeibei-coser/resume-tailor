@@ -2,68 +2,109 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
 
 export type ModeValue = "moderate" | "aggressive";
 
-interface ModeOption {
-  value: ModeValue;
-  title: string;
-  badge: string;
-  badgeTone: "positive" | "warning";
-  description: string;
-  glyph: React.ReactNode;
+/*
+ * 适中图标：精密笔尖 + 一条小修改线
+ * 视觉语义：精准打磨、轻微润色
+ */
+function IconModerate({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 40 40"
+      fill="none"
+      aria-hidden
+      className={className}
+    >
+      <rect
+        x="8"
+        y="6"
+        width="24"
+        height="28"
+        rx="3"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M14 15h12M14 20h8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.35"
+      />
+      <path
+        d="M14 25h5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.35"
+      />
+      {/* 小笔 — 在文档上做精确标注 */}
+      <path
+        d="M28 22l-6 6-1.5.5.5-1.5 6-6z"
+        fill="currentColor"
+        opacity="0.2"
+      />
+      <path
+        d="M28 22l-6 6-1.5.5.5-1.5 6-6z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M26 24l2-2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
-// 适中：羽毛笔 — 轻触、精准、克制
-const GlyphModerate = (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M20 4C16 4 10 7 8 14l-4 6h4l1-3c1 .5 2 .5 3 0l1 3h4l-4-6c2-4 4-6 7-7l.5-.5A1 1 0 0 0 20 4Z"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M8 14c1-2 2.5-3 4-3"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-
-// 激进：闪电 — 强力、破局、彻底改写
-const GlyphAggressive = (
-  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M13 2L4.5 13H11L9.5 22L20 10H13.5L15 2H13Z"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-
-const OPTIONS: ModeOption[] = [
-  {
-    value: "moderate",
-    title: "适中",
-    badge: "推荐",
-    badgeTone: "positive",
-    description: "保留原经历，精准匹配 JD，整体风格稳妥",
-    glyph: GlyphModerate,
-  },
-  {
-    value: "aggressive",
-    title: "激进",
-    badge: "仅参考",
-    badgeTone: "warning",
-    description: "重组结构、补强匹配点，大幅度改写",
-    glyph: GlyphAggressive,
-  },
-];
+/*
+ * 激进图标：文档碎裂/重组 — 箭头穿过文档
+ * 视觉语义：打散重组、大幅改写
+ */
+function IconAggressive({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 40 40"
+      fill="none"
+      aria-hidden
+      className={className}
+    >
+      {/* 左半文档（被拆开） */}
+      <path
+        d="M8 9a3 3 0 0 1 3-3h7l-2 17H9a3 3 0 0 1-3-3V9Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+        opacity="0.45"
+      />
+      {/* 右半文档（被拆开） */}
+      <path
+        d="M24 23l2-17h5a3 3 0 0 1 3 3v11a3 3 0 0 1-3 3h-7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+        opacity="0.45"
+      />
+      {/* 中心闪电 — 变革力量 */}
+      <path
+        d="M22 8l-5 10h5l-3 14 10-16h-6l4-8h-5Z"
+        fill="currentColor"
+        opacity="0.15"
+      />
+      <path
+        d="M22 8l-5 10h5l-3 14 10-16h-6l4-8h-5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 interface ModeRadioProps {
   value: ModeValue;
@@ -84,88 +125,156 @@ export function ModeRadio({
     <div
       role="radiogroup"
       aria-label="优化程度"
-      className={cn("grid grid-cols-2 gap-3", className)}
+      className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2", className)}
     >
-      {OPTIONS.map((opt) => {
-        const active = value === opt.value;
-        const isAggressive = opt.value === "aggressive";
-        return (
-          <label
-            key={opt.value}
+      {/* ─── 适中 ─── */}
+      <ModeCard
+        name={name}
+        value="moderate"
+        active={value === "moderate"}
+        onChange={onChange}
+        disabled={disabled}
+        icon={<IconModerate className="size-9" />}
+        title="适中"
+        badge="推荐"
+        badgeClass="bg-emerald-50 text-emerald-700 border-emerald-200"
+        description="保留原经历，精准匹配 JD，整体风格稳妥"
+        accentClass="border-l-[var(--blue-500)]"
+        activeClass="border-[var(--blue-400)] bg-gradient-to-br from-[var(--blue-50)]/80 to-white shadow-[0_4px_20px_-6px_oklch(0.55_0.18_250/0.25)]"
+        iconBg="bg-[var(--blue-50)] text-[var(--blue-600)]"
+        iconBgActive="bg-[var(--blue-500)] text-white"
+      />
+
+      {/* ─── 激进 ─── */}
+      <ModeCard
+        name={name}
+        value="aggressive"
+        active={value === "aggressive"}
+        onChange={onChange}
+        disabled={disabled}
+        icon={<IconAggressive className="size-9" />}
+        title="激进"
+        badge="仅参考"
+        badgeClass="bg-amber-50 text-amber-700 border-amber-200"
+        description="重组结构、补强匹配点，大幅度改写"
+        accentClass="border-l-amber-400"
+        activeClass="border-amber-300 bg-gradient-to-br from-amber-50/80 to-white shadow-[0_4px_20px_-6px_oklch(0.62_0.14_55/0.25)]"
+        iconBg="bg-amber-50 text-amber-600"
+        iconBgActive="bg-amber-500 text-white"
+      />
+    </div>
+  );
+}
+
+function ModeCard({
+  name,
+  value,
+  active,
+  onChange,
+  disabled,
+  icon,
+  title,
+  badge,
+  badgeClass,
+  description,
+  accentClass,
+  activeClass,
+  iconBg,
+  iconBgActive,
+}: {
+  name: string;
+  value: ModeValue;
+  active: boolean;
+  onChange: (v: ModeValue) => void;
+  disabled?: boolean;
+  icon: React.ReactNode;
+  title: string;
+  badge: string;
+  badgeClass: string;
+  description: string;
+  accentClass: string;
+  activeClass: string;
+  iconBg: string;
+  iconBgActive: string;
+}) {
+  return (
+    <label
+      className={cn(
+        "group relative flex cursor-pointer items-start gap-4 rounded-2xl border-l-[3px] border border-[var(--border)] bg-white p-4 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5",
+        active
+          ? cn(accentClass, activeClass)
+          : cn(
+              "border-l-transparent",
+              "hover:border-[var(--blue-200)] hover:shadow-[0_2px_12px_-4px_oklch(0.55_0.18_250/0.12)]"
+            ),
+        disabled && "cursor-not-allowed opacity-60"
+      )}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={active}
+        onChange={() => onChange(value)}
+        disabled={disabled}
+        className="sr-only"
+      />
+
+      {/* 图标 */}
+      <div
+        className={cn(
+          "flex size-12 shrink-0 items-center justify-center rounded-xl transition-all duration-300",
+          active ? iconBgActive : iconBg
+        )}
+      >
+        {icon}
+      </div>
+
+      {/* 文字区 */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[15px] font-semibold tracking-tight text-[var(--foreground)]">
+            {title}
+          </span>
+          <span
             className={cn(
-              "group relative flex cursor-pointer flex-col gap-2.5 rounded-2xl border bg-white p-3.5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-4",
-              active
-                ? isAggressive
-                  ? "border-amber-400 bg-amber-50/50 shadow-[0_8px_28px_-12px_oklch(0.62_0.14_55/0.35)]"
-                  : "border-[var(--blue-500)] bg-[var(--blue-50)]/60 shadow-[0_8px_28px_-12px_oklch(0.55_0.18_250/0.35)]"
-                : "border-[var(--border)] hover:border-[var(--blue-300)] hover:shadow-[0_4px_18px_-12px_oklch(0.55_0.18_250/0.25)]",
-              disabled && "cursor-not-allowed opacity-60"
+              "rounded-md border px-1.5 py-px text-[10px] font-medium",
+              badgeClass
             )}
           >
-            <input
-              type="radio"
-              name={name}
-              value={opt.value}
-              checked={active}
-              onChange={() => onChange(opt.value)}
-              disabled={disabled}
-              className="sr-only"
-            />
+            {badge}
+          </span>
+        </div>
+        <p className="mt-1 text-xs leading-[1.6] text-[var(--muted-foreground)]">
+          {description}
+        </p>
+      </div>
 
-            {/* 图标 + 选中圈 */}
-            <div className="flex items-start justify-between">
-              <div
-                className={cn(
-                  "flex size-9 items-center justify-center rounded-xl transition-colors duration-300",
-                  active
-                    ? isAggressive
-                      ? "bg-amber-500 text-white"
-                      : "bg-[var(--blue-500)] text-white"
-                    : isAggressive
-                    ? "bg-amber-50 text-amber-500 group-hover:bg-amber-100"
-                    : "bg-[var(--blue-50)] text-[var(--blue-500)] group-hover:bg-[var(--blue-100)]"
-                )}
-              >
-                <span className="size-[18px]">{opt.glyph}</span>
-              </div>
-              <span
-                className={cn(
-                  "flex size-4.5 items-center justify-center rounded-full border transition-all duration-300",
-                  active
-                    ? isAggressive
-                      ? "border-amber-400 bg-amber-400 text-white"
-                      : "border-[var(--blue-500)] bg-[var(--blue-500)] text-white"
-                    : "border-[var(--border)] bg-transparent text-transparent"
-                )}
-              >
-                <Check className="size-2.5" strokeWidth={3} />
-              </span>
-            </div>
-
-            {/* 标题 + badge + 描述 */}
-            <div className="flex flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
-                  {opt.title}
-                </span>
-                <span
-                  className={cn(
-                    "rounded-full px-1.5 py-0.5 font-mono text-[9px] font-medium",
-                    opt.badgeTone === "positive"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-amber-50 text-amber-700"
-                  )}
-                >
-                  {opt.badge}
-                </span>
-              </div>
-              <p className="text-[11px] leading-[1.55] text-[var(--muted-foreground)]">
-                {opt.description}
-              </p>
-            </div>
-          </label>
-        );
-      })}
-    </div>
+      {/* 选中指示器 */}
+      <div
+        className={cn(
+          "mt-1 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300",
+          active
+            ? value === "aggressive"
+              ? "border-amber-500 bg-amber-500"
+              : "border-[var(--blue-500)] bg-[var(--blue-500)]"
+            : "border-[var(--border)]"
+        )}
+      >
+        {active && (
+          <svg
+            viewBox="0 0 12 12"
+            className="size-2.5 text-white"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M2.5 6L5 8.5L9.5 3.5" />
+          </svg>
+        )}
+      </div>
+    </label>
   );
 }
