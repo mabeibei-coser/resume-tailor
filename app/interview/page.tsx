@@ -408,16 +408,17 @@ export default function InterviewPage() {
   // ---------- render ----------
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)" }}
-    >
+    <div className="relative min-h-screen flex flex-col bg-[var(--background)]">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.88_0.05_240/0.4),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_105%,oklch(0.94_0.015_60/0.3),transparent)]" />
+      </div>
       {/* 顶部导航 + Stepper */}
-      <div className="relative z-10 px-4 sm:px-6 pt-5 pb-3 border-b border-slate-200/60 bg-white/70 backdrop-blur-sm">
+      <div className="relative z-10 px-4 sm:px-6 pt-5 pb-3 border-b border-[var(--border)] bg-white/80 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-3">
             <button
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+              className="flex items-center gap-1 text-xs text-[var(--muted-foreground)] hover:text-[var(--navy-700)] transition-colors"
               onClick={() => setSkipConfirm(true)}
             >
               <SkipForward size={13} />
@@ -425,7 +426,7 @@ export default function InterviewPage() {
             </button>
             {voiceSupported && (phase === "ready" || phase === "text-input") && (
               <button
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                className="flex items-center gap-1 text-xs text-[var(--muted-foreground)] hover:text-[var(--navy-700)] transition-colors"
                 onClick={
                   phase === "text-input" ? () => setPhaseSync("ready") : handleSwitchToText
                 }
@@ -461,7 +462,7 @@ export default function InterviewPage() {
                 exit={{ opacity: 0 }}
                 className="text-center"
               >
-                <p className="text-[15px] text-slate-700 leading-[1.65]">{GREETING_TEXT}</p>
+                <p className="text-[15px] text-[var(--navy-700)] leading-[1.65]">{GREETING_TEXT}</p>
               </motion.div>
             )}
 
@@ -471,7 +472,7 @@ export default function InterviewPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-sm text-slate-400"
+                className="text-sm text-[var(--muted-foreground)]"
               >
                 AI 思考中...
               </motion.div>
@@ -485,17 +486,8 @@ export default function InterviewPage() {
                 exit={{ opacity: 0 }}
                 className="w-full"
               >
-                <div
-                  className="px-5 py-4 rounded-2xl text-[15px] leading-[1.7] text-slate-800"
-                  style={{
-                    background: "rgba(255,255,255,0.85)",
-                    backdropFilter: "blur(8px)",
-                    boxShadow:
-                      "0 1px 2px rgba(15,23,42,0.06), 0 8px 24px rgba(15,23,42,0.04)",
-                    border: "1px solid rgba(255,255,255,0.9)",
-                  }}
-                >
-                  <div className="text-[10px] tracking-[0.2em] text-blue-500 font-semibold uppercase mb-2">
+                <div className="px-5 py-4 rounded-2xl text-[15px] leading-[1.7] text-[var(--navy-900)] bg-white/85 backdrop-blur-md border border-white/90 shadow-[0_1px_2px_oklch(0.18_0.04_255/0.06),0_8px_24px_oklch(0.18_0.04_255/0.04)]">
+                  <div className="text-[10px] tracking-[0.2em] text-[var(--blue-500)] font-semibold uppercase mb-2">
                     第 {turnIndex + 1} / 2 题
                   </div>
                   {questionText}
@@ -527,7 +519,7 @@ export default function InterviewPage() {
                 animate={{ opacity: 1 }}
                 className="text-center"
               >
-                <p className="text-red-500 text-sm">{error}</p>
+                <p className="text-[var(--semantic-danger)] text-sm">{error}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -543,11 +535,7 @@ export default function InterviewPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 onClick={handleStart}
-                className="px-7 py-3 text-white rounded-full text-sm font-medium shadow-lg active:scale-95 transition-all"
-                style={{
-                  background: "linear-gradient(135deg, #4f8cff 0%, #3b82f6 100%)",
-                  boxShadow: "0 4px 16px rgba(59,130,246,0.35)",
-                }}
+                className="px-7 py-3 text-white rounded-full text-sm font-medium active:scale-95 transition-all bg-[var(--blue-600)] shadow-[0_4px_16px_oklch(0.46_0.19_252/0.35)] hover:bg-[var(--blue-500)]"
               >
                 准备好了，开始访谈
               </motion.button>
@@ -559,7 +547,7 @@ export default function InterviewPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-xs text-slate-400"
+                className="text-xs text-[var(--muted-foreground)]"
               >
                 正在准备问题...
               </motion.div>
@@ -580,7 +568,7 @@ export default function InterviewPage() {
                   isRecording={phase === "recording"}
                   durationSec={recorder.durationSec}
                 />
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-[var(--muted-foreground)]">
                   {phase === "recording"
                     ? "按住说话 · 松开识别 · 上滑取消"
                     : "按住麦克风开始回答"}
@@ -594,7 +582,7 @@ export default function InterviewPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="px-7 py-3 bg-blue-600 text-white rounded-full text-sm font-medium shadow-md"
+                className="px-7 py-3 bg-[var(--blue-600)] text-white rounded-full text-sm font-medium shadow-md"
                 onClick={handleSwitchToText}
               >
                 文字输入
@@ -607,7 +595,7 @@ export default function InterviewPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-xs text-slate-400 animate-pulse"
+                className="text-xs text-[var(--muted-foreground)] animate-pulse"
               >
                 识别中，请稍候...
               </motion.div>
@@ -619,7 +607,7 @@ export default function InterviewPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-[11px] text-slate-400"
+                className="text-[11px] text-[var(--muted-foreground)]"
               >
                 修改后点「确认提交」进入下一题 · 第 {turnIndex + 1} / 2 题
               </motion.div>
@@ -631,7 +619,7 @@ export default function InterviewPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-[11px] text-slate-400"
+                className="text-[11px] text-[var(--muted-foreground)]"
               >
                 AI 朗读中...
               </motion.div>
@@ -657,19 +645,19 @@ export default function InterviewPage() {
               className="bg-white rounded-2xl p-6 max-w-xs w-full shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-base font-semibold text-slate-800 mb-2">跳过 AI 访谈？</h3>
-              <p className="text-sm text-slate-500 mb-5">
+              <h3 className="text-base font-semibold text-[var(--navy-900)] mb-2">跳过 AI 访谈？</h3>
+              <p className="text-sm text-[var(--muted-foreground)] mb-5">
                 访谈内容可以让简历更贴合你的偏好，跳过后将直接生成定制简历。
               </p>
               <div className="flex gap-3">
                 <button
-                  className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50"
+                  className="flex-1 py-2.5 border border-[var(--border)] rounded-xl text-sm text-[var(--navy-800)] hover:bg-[var(--blue-50)]"
                   onClick={() => setSkipConfirm(false)}
                 >
                   继续访谈
                 </button>
                 <button
-                  className="flex-1 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-900"
+                  className="flex-1 py-2.5 bg-[var(--navy-950)] text-white rounded-xl text-sm font-medium hover:bg-[var(--navy-900)]"
                   onClick={handleSkip}
                 >
                   跳过
