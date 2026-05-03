@@ -13,12 +13,12 @@ export const INTERVIEW_QUESTION_BANK: BankQuestion[] = [
   {
     id: "q1",
     tag: "preference",
-    text: "对于本次简历优化你有任何想法或者要求可以在这里告诉我。",
+    text: "对于这个岗位的信息你还有什么需要补充给我注意的嘛？",
   },
   {
     id: "q2",
     tag: "preference",
-    text: "对于这个岗位的信息你还有什么需要补充给我注意的嘛？",
+    text: "对于本次简历优化你有任何想法或者要求可以在这里告诉我。",
   },
 ];
 
