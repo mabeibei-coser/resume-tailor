@@ -91,11 +91,9 @@ export default function ReportPage() {
   const isFallback = Boolean((report as unknown as { fallback?: boolean }).fallback);
 
   return (
-    <main className="relative min-h-[100dvh] overflow-x-hidden bg-gradient-to-br from-[var(--blue-50)] via-white to-[var(--blue-100)]/40 pb-28">
-      {/* Ambient blur */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 size-[36rem] rounded-full bg-[var(--blue-100)]/50 blur-3xl" />
-        <div className="absolute bottom-[-5%] -left-32 size-[28rem] rounded-full bg-[var(--blue-50)]/80 blur-3xl" />
+    <main className="relative min-h-[100dvh] overflow-x-hidden bg-white pb-28">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.88_0.05_240/0.3),transparent)]" />
       </div>
 
       {/* Header */}
@@ -141,19 +139,23 @@ export default function ReportPage() {
 
         {/* Hero + stats strip */}
         <Reveal mounted={mounted} delay={40}>
-          <div className="mb-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--blue-200)] bg-white/70 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--blue-600)] backdrop-blur">
-              <span className="size-1.5 rounded-full bg-[var(--semantic-positive)]" />
-              Step 2 of 2 · 报告
-            </span>
-            <h1 className="mt-4 text-2xl font-bold tracking-tight text-[var(--navy-900)] sm:text-3xl">
-              你的定制版简历已生成
+          <div className="mb-10 border-b border-[var(--border)] pb-8">
+            <p className="mb-3 text-xs font-medium tracking-[0.2em] uppercase text-[var(--blue-500)]">
+              分析完成
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--navy-950)] sm:text-3xl">
+              已找到{" "}
+              <span className="text-[var(--blue-600)]">{report.suggestions.length} 处</span>
+              {" "}可优化内容
             </h1>
+            <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+              AI 对照 JD 逐条检查，以下是具体问题和改法
+            </p>
 
             {/* Stats chips */}
-            <div className="mt-5 flex flex-wrap gap-2">
-              <StatChip icon={<Zap className="size-3" />} count={report.suggestions.length} label="项简历问题" />
-              <StatChip icon={<MessageSquare className="size-3" />} count={report.interview.length} label="道面试问答" />
+            <div className="mt-5 flex flex-wrap gap-3">
+              <StatChip icon={<Zap className="size-3" />} count={report.suggestions.length} label="项问题已修复" />
+              <StatChip icon={<MessageSquare className="size-3" />} count={report.interview.length} label="道面试题备好了" />
             </div>
           </div>
         </Reveal>
@@ -188,21 +190,24 @@ export default function ReportPage() {
             </button>
           </div>
         )}
-        <div className="border-t border-[var(--blue-100)] bg-white/85 shadow-[0_-4px_20px_-4px_oklch(0.55_0.18_250/0.08)] backdrop-blur-xl">
-          <div className="mx-auto flex max-w-4xl items-center gap-4 px-5 py-3.5 sm:px-8 sm:py-4">
-            <p className="hidden flex-1 text-xs text-[var(--muted-foreground)] sm:block">
-              导出后用 Word 打开，可直接修改并投递
-            </p>
+        <div className="border-t border-[var(--blue-100)] bg-white/90 shadow-[0_-4px_20px_-4px_oklch(0.55_0.18_250/0.08)] backdrop-blur-xl">
+          <div className="mx-auto flex max-w-4xl items-center gap-4 px-5 py-4 sm:px-8">
+            <div className="hidden flex-1 sm:block">
+              <p className="text-sm font-medium text-[var(--navy-900)]">简历定制完成</p>
+              <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                Word 格式，可直接编辑，一键投递
+              </p>
+            </div>
             <button
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="ml-auto inline-flex h-11 min-w-[156px] items-center justify-center gap-2 rounded-xl bg-[var(--blue-600)] px-6 text-sm font-semibold text-white shadow-[0_8px_24px_-6px_oklch(0.46_0.19_252/0.55)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-px hover:bg-[var(--blue-500)] hover:shadow-[0_12px_32px_-6px_oklch(0.46_0.19_252/0.65)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="ml-auto inline-flex h-11 min-w-[160px] items-center justify-center gap-2 rounded-xl bg-[var(--navy-950)] px-6 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.3)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-px hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.4)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {downloading ? (
                 <><Loader2 className="size-4 animate-spin" />正在生成…</>
               ) : (
-                <><Download className="size-4" />下载 Word 简历</>
+                <><Download className="size-4" />下载定制简历</>
               )}
             </button>
           </div>
@@ -377,22 +382,24 @@ function SuggestionsBlock({ suggestions }: { suggestions: TailorSuggestion[] }) 
 
 function SuggestionCard({ suggestion: s, index: i }: { suggestion: TailorSuggestion; index: number }) {
   return (
-    <div className="flex gap-3.5 rounded-2xl border border-[var(--blue-100)] bg-white/80 px-5 py-4 shadow-[0_1px_8px_-4px_oklch(0.55_0.18_250/0.07)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--blue-200)] hover:shadow-[0_6px_22px_-6px_oklch(0.55_0.18_250/0.14)] sm:px-6 sm:py-5">
-      <span className="mt-0.5 shrink-0 font-mono text-xs font-bold tabular-nums text-[var(--blue-200)]">
-        {String(i + 1).padStart(2, "0")}
+    <div className="flex gap-4 rounded-2xl border border-[var(--blue-100)] bg-white p-5 shadow-[0_1px_8px_-4px_oklch(0.55_0.18_250/0.07)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--blue-200)] hover:shadow-[0_6px_22px_-6px_oklch(0.55_0.18_250/0.14)] sm:p-6">
+      <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--blue-50)] font-mono text-[11px] font-bold tabular-nums text-[var(--blue-600)]">
+        {i + 1}
       </span>
       <div className="min-w-0 flex-1">
-        <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
-          {s.title}
-        </h3>
-        <p className="mt-1.5 text-sm leading-[1.65] text-[var(--report-ink-muted)]">
-          {s.problem}
-          <span className="ml-2 inline-flex translate-y-[-1px] items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
+            {s.title}
+          </h3>
+          <span className="shrink-0 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">
             <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M2.5 6L5 8.5L9.5 3.5" />
             </svg>
             已优化
           </span>
+        </div>
+        <p className="mt-1.5 text-sm leading-[1.65] text-[var(--report-ink-muted)]">
+          {s.problem}
         </p>
       </div>
     </div>
@@ -544,11 +551,16 @@ function InterviewBlock({ questions }: { questions: TailorInterviewQuestion[] })
       {questions.length === 0 ? (
         <EmptyHint>该模块暂无数据</EmptyHint>
       ) : (
-        <div className="grid gap-2.5">
-          {questions.map((q, i) => (
-            <InterviewItem key={i} question={q} index={i} />
-          ))}
-        </div>
+        <>
+          <p className="mb-4 text-sm leading-[1.7] text-[var(--muted-foreground)]">
+            基于你的简历和目标 JD，以下是最可能被问到的问题及参考答案。
+          </p>
+          <div className="grid gap-2.5">
+            {questions.map((q, i) => (
+              <InterviewItem key={i} question={q} index={i} />
+            ))}
+          </div>
+        </>
       )}
     </section>
   );
