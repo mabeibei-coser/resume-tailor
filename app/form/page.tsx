@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/file-upload";
 import { ModeRadio, type ModeValue } from "@/components/ui/mode-radio";
 import { cn } from "@/lib/utils";
-import type { TailorFormData, TailorMode } from "@/lib/types";
+import type { ResumeJSON, TailorFormData, TailorMode } from "@/lib/types";
 import { startReportPrefetch } from "@/lib/report-prefetch";
+import { API_BASE } from "@/lib/api-base";
 
 const formSchema = z.object({
   jobTitle: z
@@ -35,10 +36,34 @@ export default function FormPage() {
   const [resume, setResume] = useState<FileUploadValue | null>(null);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const parsedResumeRef = useRef<ResumeJSON | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!resume?.text) {
+      parsedResumeRef.current = null;
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`${API_BASE}/api/dev/parse-resume`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resumeText: resume.text }),
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json?.data) {
+          parsedResumeRef.current = json.data as ResumeJSON;
+          console.info("[FORM] resume pre-parsed successfully");
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [resume?.text]);
 
   const {
     register,
@@ -76,6 +101,7 @@ export default function FormPage() {
       resumeRef: resume.resumeRef,
       resumeFilename: resume.resumeFilename ?? resume.fileName,
       mode: data.mode as TailorMode,
+      ...(parsedResumeRef.current && { parsedResume: parsedResumeRef.current }),
     };
 
     sessionStorage.setItem("tailor:form", JSON.stringify(payload));

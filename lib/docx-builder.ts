@@ -387,12 +387,13 @@ function buildWorkRows(work: ResumeWork[] | undefined): TableRow[] {
   for (const w of work) {
     const dateText = fmtDateRange(w.startDate, w.endDate);
     const position = nonEmpty(w.position) ? w.position : "";
-    rows.push(threeColRow(dateText, w.name, position));
+    rows.push(threeColRow(dateText, w.name ?? "", position));
 
     const descParas: Paragraph[] = [];
 
-    if (w.highlights && w.highlights.length > 0) {
-      const valid = w.highlights.filter(nonEmpty);
+    const wHighlights = Array.isArray(w.highlights) ? w.highlights : [];
+    if (wHighlights.length > 0) {
+      const valid = wHighlights.filter(nonEmpty);
       if (valid.length > 0) {
         descParas.push(textPara("工作描述：", { color: GRAY, bold: true }));
         for (let i = 0; i < valid.length; i++) {
@@ -425,7 +426,7 @@ function buildProjectRows(
   for (const p of projects) {
     const dateText = fmtDateRange(p.startDate, p.endDate);
     const roles =
-      p.roles && p.roles.length > 0
+      Array.isArray(p.roles) && p.roles.length > 0
         ? p.roles.filter(nonEmpty).join(" / ")
         : "";
     rows.push(threeColRow(dateText, p.name, roles));
@@ -436,8 +437,9 @@ function buildProjectRows(
       descParas.push(textPara(p.description, { color: GRAY, bold: true }));
     }
 
-    if (p.highlights && p.highlights.length > 0) {
-      const valid = p.highlights.filter(nonEmpty);
+    const pHighlights = Array.isArray(p.highlights) ? p.highlights : [];
+    if (pHighlights.length > 0) {
+      const valid = pHighlights.filter(nonEmpty);
       for (let i = 0; i < valid.length; i++) {
         descParas.push(
           textPara(`${i + 1}. ${valid[i]}`, { color: GRAY, bold: true }),
@@ -445,8 +447,9 @@ function buildProjectRows(
       }
     }
 
-    if (p.keywords && p.keywords.length > 0) {
-      const kw = p.keywords.filter(nonEmpty);
+    const pKeywords = Array.isArray(p.keywords) ? p.keywords : [];
+    if (pKeywords.length > 0) {
+      const kw = pKeywords.filter(nonEmpty);
       if (kw.length > 0) {
         descParas.push(
           textPara(`关键词：${kw.join("、")}`, { color: GRAY }),
@@ -519,14 +522,15 @@ function buildVolunteerRows(resume: ResumeJSON): TableRow[] {
   for (const v of items) {
     const dateText = fmtDateRange(v.startDate, v.endDate);
     const position = nonEmpty(v.position) ? v.position : "";
-    rows.push(threeColRow(dateText, v.organization, position));
+    rows.push(threeColRow(dateText, v.organization ?? "", position));
 
     const descParas: Paragraph[] = [];
     if (nonEmpty(v.summary)) {
       descParas.push(textPara(v.summary, { color: GRAY, bold: true }));
     }
-    if (v.highlights && v.highlights.length > 0) {
-      const valid = v.highlights.filter(nonEmpty);
+    const vHighlights = Array.isArray(v.highlights) ? v.highlights : [];
+    if (vHighlights.length > 0) {
+      const valid = vHighlights.filter(nonEmpty);
       for (let i = 0; i < valid.length; i++) {
         descParas.push(
           textPara(`${i + 1}. ${valid[i]}`, { color: GRAY, bold: true }),
@@ -565,12 +569,13 @@ function buildLanguageRows(resume: ResumeJSON): TableRow[] {
 // ——————————————————————————
 
 export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
-  const headerTable = buildHeaderTable(resume.basics);
+  const basics = resume.basics ?? { name: "" };
+  const headerTable = buildHeaderTable(basics);
 
   // Table 2: 所有正文 section
   const contentRows: TableRow[] = [
     ...buildEducationRows(resume.education),
-    ...buildSummaryRows(resume.basics.summary),
+    ...buildSummaryRows(basics.summary),
     ...buildWorkRows(resume.work),
     ...buildProjectRows(resume.projects),
     ...buildSkillRows(resume.skills),
@@ -578,6 +583,10 @@ export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
     ...buildVolunteerRows(resume),
     ...buildLanguageRows(resume),
   ];
+
+  if (contentRows.length === 0) {
+    contentRows.push(separatorRow());
+  }
 
   const contentTable = new Table({
     width: { size: T2_TOTAL, type: WidthType.DXA },
@@ -594,7 +603,7 @@ export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
 
   const doc = new Document({
     creator: "resume-tailor",
-    title: resume.basics.name ? `${resume.basics.name} - 简历` : "简历",
+    title: basics.name ? `${basics.name} - 简历` : "简历",
     styles: {
       default: {
         document: {

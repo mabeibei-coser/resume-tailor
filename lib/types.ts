@@ -55,6 +55,7 @@ export interface TailorFormData {
   resumeRef?: string;
   resumeFilename?: string;
   mode: TailorMode;
+  parsedResume?: ResumeJSON;
 }
 
 // ——————————————————————————
