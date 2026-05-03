@@ -13,7 +13,12 @@ export const INTERVIEW_QUESTION_BANK: BankQuestion[] = [
   {
     id: "q1",
     tag: "preference",
-    text: "你对简历优化的要求有哪些？请聊聊你对这次简历调整的具体偏好——比如想要突出什么经历、压缩到一页还是两页、对哪些表述不满意、目标公司的画像。",
+    text: "对于本次简历优化你有任何想法或者要求可以在这里告诉我。",
+  },
+  {
+    id: "q2",
+    tag: "preference",
+    text: "对于这个岗位的信息你还有什么需要补充给我注意的嘛？",
   },
 ];
 
