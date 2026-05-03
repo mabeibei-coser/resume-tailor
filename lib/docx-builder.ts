@@ -1,15 +1,16 @@
 /**
- * DOCX Builder — 模板风格：微软雅黑 + 蓝色主题 + 表格头部
+ * DOCX Builder — 严格对标模板
  *
- * 对标模板规范：
- * - 字体：微软雅黑（全文）
- * - 主题色：#4874CB（姓名、求职意向、section 标题）
- * - 姓名：22pt，蓝色，加粗
- * - 求职意向：12pt，蓝色，加粗
- * - Section 标题：字间距加宽（教 育 背 景），12pt，加粗
- * - 正文：10.5pt
- * - 工作描述：编号列表（1. 2. 3.）
- * - 页边距：上下 15mm，左右 25mm
+ * 模板结构：
+ * Table 1（头部）：3列 — 姓名(竖向合并) | 求职意向+联系方式 | 照片区(竖向合并)
+ * Table 2（正文）：3列 — 所有内容 section 放在一个大表格里
+ *   - section 标题行（蓝色，字间距加宽）
+ *   - 数据行（日期 | 单位 | 岗位/专业）
+ *   - 描述行（columnSpan=3 横跨）
+ *   - 空行分隔
+ *
+ * 字体：微软雅黑
+ * 颜色：#4874CB（蓝色主题），#595959（灰色正文），#3B3838（深灰标题行）
  */
 
 import { Buffer } from "node:buffer";
@@ -18,15 +19,13 @@ import {
   Packer,
   Paragraph,
   TextRun,
-  AlignmentType,
-  TabStopType,
-  TabStopPosition,
   Table,
   TableRow,
   TableCell,
   WidthType,
   BorderStyle,
-  type ParagraphChild,
+  VerticalMergeType,
+  AlignmentType,
   type ITableCellBorders,
 } from "docx";
 
@@ -40,7 +39,7 @@ import type {
 } from "./types";
 
 // ——————————————————————————
-// 字体 & 颜色常量
+// 常量
 // ——————————————————————————
 
 const MSYH = {
@@ -50,27 +49,32 @@ const MSYH = {
   hAnsi: "Microsoft YaHei",
 } as const;
 
-const ACCENT_BLUE = "4874CB";
+const BLUE = "4874CB";
+const GRAY = "595959";
+const DARK = "3B3838";
 
-// 字号（半点）
-const SIZE_NAME = 44;       // 22pt
-const SIZE_LABEL = 24;      // 12pt — 求职意向
-const SIZE_SECTION = 24;    // 12pt — section 标题
-const SIZE_ITEM = 21;       // 10.5pt — 公司/学校行
-const SIZE_BODY = 21;       // 10.5pt — 正文
+const SZ_NAME = 44;      // 22pt
+const SZ_LABEL = 24;     // 12pt
+const SZ_SECTION = 28;   // 14pt
+const SZ_BODY = 22;      // 11pt
 
-// 段落间距（1/20 pt）
-const SP_BEFORE_SECTION = 200; // 10pt
-const SP_AFTER_SECTION = 80;   // 4pt
-const SP_BEFORE_ITEM = 100;    // 5pt
-const SP_AFTER = 60;           // 3pt
-
-const NO_BORDER: ITableCellBorders = {
+const NO_BORDERS: ITableCellBorders = {
   top: { style: BorderStyle.NONE, size: 0 },
   bottom: { style: BorderStyle.NONE, size: 0 },
   left: { style: BorderStyle.NONE, size: 0 },
   right: { style: BorderStyle.NONE, size: 0 },
 };
+
+// Table 1 列宽（DXA）
+const T1_COL1 = 2837;
+const T1_COL2 = 4465;
+const T1_COL3 = 2683;
+
+// Table 2 列宽（DXA）
+const T2_COL1 = 2602;
+const T2_COL2 = 4123;
+const T2_COL3 = 3231;
+const T2_TOTAL = T2_COL1 + T2_COL2 + T2_COL3;
 
 // ——————————————————————————
 // 工具函数
@@ -93,42 +97,158 @@ function spacedTitle(text: string): string {
   return text.split("").join(" ");
 }
 
-function bodyRun(text: string, opts: { bold?: boolean; color?: string } = {}): TextRun {
-  return new TextRun({
-    text,
-    font: MSYH,
-    size: SIZE_BODY,
-    bold: opts.bold,
-    color: opts.color,
+function emptyPara(): Paragraph {
+  return new Paragraph({ spacing: { after: 0 } });
+}
+
+function textPara(
+  text: string,
+  opts: { size?: number; color?: string; bold?: boolean; indent?: number } = {},
+): Paragraph {
+  return new Paragraph({
+    spacing: { after: 40 },
+    indent: opts.indent ? { left: opts.indent } : undefined,
+    children: [
+      new TextRun({
+        text,
+        font: MSYH,
+        size: opts.size ?? SZ_BODY,
+        color: opts.color ?? GRAY,
+        bold: opts.bold,
+      }),
+    ],
   });
 }
 
-function itemRun(text: string, opts: { bold?: boolean; color?: string; size?: number } = {}): TextRun {
-  return new TextRun({
-    text,
-    font: MSYH,
-    size: opts.size ?? SIZE_ITEM,
-    bold: opts.bold ?? true,
-    color: opts.color,
+/** 无边框单元格 */
+function cell(
+  children: Paragraph[],
+  opts: {
+    width?: number;
+    columnSpan?: number;
+    verticalMerge?: VerticalMergeType;
+  } = {},
+): TableCell {
+  return new TableCell({
+    borders: NO_BORDERS,
+    width: opts.width ? { size: opts.width, type: WidthType.DXA } : undefined,
+    columnSpan: opts.columnSpan,
+    verticalMerge: opts.verticalMerge,
+    children: children.length > 0 ? children : [emptyPara()],
   });
 }
 
 // ——————————————————————————
-// Header: 表格布局（姓名 + 求职意向 + 联系方式）
+// Table 1：头部
 // ——————————————————————————
 
 function buildHeaderTable(basics: ResumeBasics): Table {
-  const contactLines: string[] = [];
-  if (nonEmpty(basics.phone)) contactLines.push(`手机：${basics.phone}`);
-  if (nonEmpty(basics.email)) contactLines.push(`邮箱：${basics.email}`);
-  const city = basics.location?.city;
-  if (nonEmpty(city)) contactLines.push(`现居：${city}`);
-  if (nonEmpty(basics.url)) contactLines.push(basics.url);
+  const contactPairs: [string, string][] = [];
 
+  if (nonEmpty(basics.phone)) contactPairs.push(["手机：" + basics.phone, ""]);
+  if (nonEmpty(basics.email))
+    contactPairs.push(
+      contactPairs.length > 0
+        ? [contactPairs.pop()![0], "邮箱：" + basics.email]
+        : ["邮箱：" + basics.email, ""],
+    );
+
+  const city = basics.location?.city;
+  if (nonEmpty(city)) contactPairs.push(["现居：" + city, ""]);
+
+  // 确保至少有一对联系方式 + label 行
   const labelText = nonEmpty(basics.label) ? `求职意向：${basics.label}` : "";
 
+  const rows: TableRow[] = [];
+
+  // Row 1: 姓名(merge start) | 空 | 右列(merge start)
+  rows.push(
+    new TableRow({
+      children: [
+        cell(
+          [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: basics.name,
+                  font: MSYH,
+                  size: SZ_NAME,
+                  bold: true,
+                  color: BLUE,
+                }),
+              ],
+            }),
+          ],
+          { width: T1_COL1, verticalMerge: VerticalMergeType.RESTART },
+        ),
+        cell([emptyPara()], { width: T1_COL2 }),
+        cell([emptyPara()], {
+          width: T1_COL3,
+          verticalMerge: VerticalMergeType.RESTART,
+        }),
+      ],
+    }),
+  );
+
+  // Row 2: (continue) | 求职意向 | (continue)
+  if (labelText) {
+    rows.push(
+      new TableRow({
+        children: [
+          cell([emptyPara()], {
+            width: T1_COL1,
+            verticalMerge: VerticalMergeType.CONTINUE,
+          }),
+          cell(
+            [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: labelText,
+                    font: MSYH,
+                    size: SZ_LABEL,
+                    bold: true,
+                    color: BLUE,
+                  }),
+                ],
+              }),
+            ],
+            { width: T1_COL2 },
+          ),
+          cell([emptyPara()], {
+            width: T1_COL3,
+            verticalMerge: VerticalMergeType.CONTINUE,
+          }),
+        ],
+      }),
+    );
+  }
+
+  // 联系方式行（每行两个字段）
+  for (const [left, right] of contactPairs) {
+    rows.push(
+      new TableRow({
+        children: [
+          cell([textPara(left, { color: GRAY, bold: true })], {
+            width: T1_COL1,
+          }),
+          cell(
+            right
+              ? [textPara(right, { color: GRAY, bold: true })]
+              : [emptyPara()],
+            { width: T1_COL2 },
+          ),
+          cell([emptyPara()], {
+            width: T1_COL3,
+            verticalMerge: VerticalMergeType.CONTINUE,
+          }),
+        ],
+      }),
+    );
+  }
+
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: T1_COL1 + T1_COL2 + T1_COL3, type: WidthType.DXA },
     borders: {
       top: { style: BorderStyle.NONE, size: 0 },
       bottom: { style: BorderStyle.NONE, size: 0 },
@@ -137,385 +257,245 @@ function buildHeaderTable(basics: ResumeBasics): Table {
       insideHorizontal: { style: BorderStyle.NONE, size: 0 },
       insideVertical: { style: BorderStyle.NONE, size: 0 },
     },
-    rows: [
-      new TableRow({
-        children: [
-          // 左列：姓名
-          new TableCell({
-            borders: NO_BORDER,
-            width: { size: 35, type: WidthType.PERCENTAGE },
+    rows,
+  });
+}
+
+// ——————————————————————————
+// Table 2：正文内容（所有 section 在一个大表格里）
+// ——————————————————————————
+
+/** Section 标题行 */
+function sectionTitleRow(title: string): TableRow {
+  return new TableRow({
+    children: [
+      cell(
+        [
+          new Paragraph({
+            spacing: { before: 120, after: 60 },
             children: [
-              new Paragraph({
-                spacing: { after: 40 },
-                children: [
-                  new TextRun({
-                    text: basics.name,
-                    font: MSYH,
-                    size: SIZE_NAME,
-                    bold: true,
-                    color: ACCENT_BLUE,
-                  }),
-                ],
+              new TextRun({
+                text: spacedTitle(title),
+                font: MSYH,
+                size: SZ_SECTION,
+                bold: true,
+                color: BLUE,
               }),
-              ...(labelText
-                ? [
-                    new Paragraph({
-                      spacing: { after: 40 },
-                      children: [
-                        new TextRun({
-                          text: labelText,
-                          font: MSYH,
-                          size: SIZE_LABEL,
-                          bold: true,
-                          color: ACCENT_BLUE,
-                        }),
-                      ],
-                    }),
-                  ]
-                : []),
             ],
           }),
-          // 右列：联系方式
-          new TableCell({
-            borders: NO_BORDER,
-            width: { size: 65, type: WidthType.PERCENTAGE },
-            children:
-              contactLines.length > 0
-                ? contactLines.map(
-                    (line) =>
-                      new Paragraph({
-                        alignment: AlignmentType.RIGHT,
-                        spacing: { after: 30 },
-                        children: [bodyRun(line)],
-                      }),
-                  )
-                : [new Paragraph({})],
-          }),
         ],
+        { width: T2_COL1 },
+      ),
+      cell([emptyPara()], { width: T2_COL2 }),
+      cell([emptyPara()], { width: T2_COL3 }),
+    ],
+  });
+}
+
+/** 三列数据行（日期 | 单位 | 岗位） */
+function threeColRow(
+  col1: string,
+  col2: string,
+  col3: string,
+): TableRow {
+  return new TableRow({
+    children: [
+      cell([textPara(col1, { color: DARK, bold: true })], { width: T2_COL1 }),
+      cell([textPara(col2, { color: DARK, bold: true })], { width: T2_COL2 }),
+      cell([textPara(col3, { color: DARK, bold: true })], { width: T2_COL3 }),
+    ],
+  });
+}
+
+/** 横跨全宽的描述行（columnSpan=3） */
+function fullWidthRow(paragraphs: Paragraph[]): TableRow {
+  return new TableRow({
+    children: [
+      cell(paragraphs.length > 0 ? paragraphs : [emptyPara()], {
+        width: T2_TOTAL,
+        columnSpan: 3,
       }),
     ],
   });
 }
 
-// ——————————————————————————
-// Section 标题（蓝色加粗 + 底部蓝线）
-// ——————————————————————————
-
-function buildSectionTitle(text: string): Paragraph[] {
-  return [
-    new Paragraph({
-      spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION },
-      border: {
-        bottom: { style: BorderStyle.SINGLE, size: 6, color: ACCENT_BLUE },
-      },
-      children: [
-        new TextRun({
-          text: spacedTitle(text),
-          font: MSYH,
-          size: SIZE_SECTION,
-          bold: true,
-          color: ACCENT_BLUE,
-        }),
-      ],
-    }),
-  ];
+/** 空分隔行 */
+function separatorRow(): TableRow {
+  return new TableRow({
+    children: [
+      cell([emptyPara()], { width: T2_COL1 }),
+      cell([emptyPara()], { width: T2_COL2 }),
+      cell([emptyPara()], { width: T2_COL3 }),
+    ],
+  });
 }
 
 // ——————————————————————————
-// Section: 教育背景
+// 构建各 section 的 rows
 // ——————————————————————————
 
-export function buildEducationSection(
+function buildEducationRows(
   education: ResumeEducation[] | undefined,
-): Paragraph[] {
+): TableRow[] {
   if (!education || education.length === 0) return [];
-
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("教育背景"));
+  const rows: TableRow[] = [sectionTitleRow("教育背景")];
 
   for (const e of education) {
     const dateText = fmtDateRange(e.startDate, e.endDate);
     const studyType = nonEmpty(e.studyType) ? e.studyType : "";
     const area = nonEmpty(e.area) ? e.area : "";
-    const right = [area, studyType].filter(Boolean).join(" / ");
+    const col2 = nonEmpty(e.institution) ? e.institution : "";
+    const col3 = [area, studyType].filter(Boolean).join("/");
 
-    const headerChildren: ParagraphChild[] = [];
-    if (dateText) {
-      headerChildren.push(bodyRun(dateText));
-      headerChildren.push(bodyRun("    "));
-    }
-    headerChildren.push(itemRun(e.institution));
-    if (right) {
-      headerChildren.push(new TextRun({ text: "\t", font: MSYH, size: SIZE_BODY }));
-      headerChildren.push(bodyRun(right));
-    }
-
-    out.push(
-      new Paragraph({
-        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-        children: headerChildren,
-      }),
-    );
+    rows.push(threeColRow(dateText, col2, col3));
 
     if (nonEmpty(e.score)) {
-      out.push(
-        new Paragraph({
-          spacing: { after: SP_AFTER },
-          children: [bodyRun(`GPA / 排名：${e.score}`)],
-        }),
+      rows.push(
+        fullWidthRow([textPara(`GPA / 排名：${e.score}`)]),
       );
-    }
-
-    if (e.courses && e.courses.length > 0) {
-      const validCourses = e.courses.filter(nonEmpty);
-      if (validCourses.length > 0) {
-        out.push(
-          new Paragraph({
-            spacing: { after: SP_AFTER },
-            children: [bodyRun(`相关课程：${validCourses.join("、")}`)],
-          }),
-        );
-      }
     }
   }
 
-  return out;
+  rows.push(separatorRow());
+  return rows;
 }
 
-// ——————————————————————————
-// Section: 个人优势总结
-// ——————————————————————————
-
-function buildSummarySection(summary: string | undefined): Paragraph[] {
+function buildSummaryRows(summary: string | undefined): TableRow[] {
   if (!nonEmpty(summary)) return [];
 
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("个人优势总结"));
+  const rows: TableRow[] = [sectionTitleRow("个人优势总结")];
 
   const lines = summary
     .split(/\n/)
     .map((l) => l.trim())
     .filter(Boolean);
 
-  for (let i = 0; i < lines.length; i++) {
-    const text = lines[i].replace(/^\d+[.、．]\s*/, "");
-    out.push(
-      new Paragraph({
-        spacing: { after: SP_AFTER },
-        children: [bodyRun(`${i + 1}. ${text}`)],
-      }),
-    );
-  }
+  const paras: Paragraph[] = lines.map((line, i) => {
+    const text = line.replace(/^\d+[.、．]\s*/, "");
+    return textPara(`${i + 1}. ${text}`, { color: GRAY, bold: true });
+  });
 
-  return out;
+  rows.push(fullWidthRow(paras));
+  rows.push(separatorRow());
+  return rows;
 }
 
-// ——————————————————————————
-// Section: 工作经历
-// ——————————————————————————
-
-export function buildWorkSection(work: ResumeWork[] | undefined): Paragraph[] {
+function buildWorkRows(work: ResumeWork[] | undefined): TableRow[] {
   if (!work || work.length === 0) return [];
-
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("工作经历"));
+  const rows: TableRow[] = [sectionTitleRow("工作经历")];
 
   for (const w of work) {
     const dateText = fmtDateRange(w.startDate, w.endDate);
     const position = nonEmpty(w.position) ? w.position : "";
+    rows.push(threeColRow(dateText, w.name, position));
 
-    const headerChildren: ParagraphChild[] = [];
-    if (dateText) {
-      headerChildren.push(bodyRun(dateText));
-      headerChildren.push(bodyRun("    "));
-    }
-    headerChildren.push(itemRun(w.name));
-    if (position) {
-      headerChildren.push(new TextRun({ text: "\t", font: MSYH, size: SIZE_BODY }));
-      headerChildren.push(itemRun(position));
-    }
-
-    out.push(
-      new Paragraph({
-        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-        children: headerChildren,
-      }),
-    );
-
-    if (nonEmpty(w.summary)) {
-      out.push(
-        new Paragraph({
-          spacing: { after: SP_AFTER },
-          children: [bodyRun(w.summary)],
-        }),
-      );
-    }
+    const descParas: Paragraph[] = [];
 
     if (w.highlights && w.highlights.length > 0) {
       const valid = w.highlights.filter(nonEmpty);
       if (valid.length > 0) {
-        out.push(
-          new Paragraph({
-            spacing: { after: SP_AFTER },
-            children: [bodyRun("工作描述：", { bold: true })],
-          }),
-        );
+        descParas.push(textPara("工作描述：", { color: GRAY, bold: true }));
         for (let i = 0; i < valid.length; i++) {
-          out.push(
-            new Paragraph({
-              spacing: { after: SP_AFTER },
-              indent: { left: 240 },
-              children: [bodyRun(`${i + 1}. ${valid[i]}`)],
-            }),
+          descParas.push(
+            textPara(`${i + 1}. ${valid[i]}`, { color: GRAY, bold: true }),
           );
         }
       }
+    } else if (nonEmpty(w.summary)) {
+      descParas.push(textPara("工作描述：", { color: GRAY, bold: true }));
+      descParas.push(textPara(w.summary, { color: GRAY, bold: true }));
     }
+
+    if (descParas.length > 0) {
+      rows.push(fullWidthRow(descParas));
+    }
+
+    rows.push(separatorRow());
   }
 
-  return out;
+  return rows;
 }
 
-// ——————————————————————————
-// Section: 项目经验
-// ——————————————————————————
-
-export function buildProjectsSection(
+function buildProjectRows(
   projects: ResumeProject[] | undefined,
-): Paragraph[] {
+): TableRow[] {
   if (!projects || projects.length === 0) return [];
-
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("项目经验"));
+  const rows: TableRow[] = [sectionTitleRow("项目经验")];
 
   for (const p of projects) {
     const dateText = fmtDateRange(p.startDate, p.endDate);
+    const roles =
+      p.roles && p.roles.length > 0
+        ? p.roles.filter(nonEmpty).join(" / ")
+        : "";
+    rows.push(threeColRow(dateText, p.name, roles));
 
-    const headerChildren: ParagraphChild[] = [];
-    if (dateText) {
-      headerChildren.push(bodyRun(dateText));
-      headerChildren.push(bodyRun("    "));
-    }
-    headerChildren.push(itemRun(p.name));
-
-    if (p.roles && p.roles.length > 0) {
-      const validRoles = p.roles.filter(nonEmpty);
-      if (validRoles.length > 0) {
-        headerChildren.push(new TextRun({ text: "\t", font: MSYH, size: SIZE_BODY }));
-        headerChildren.push(bodyRun(validRoles.join(" / ")));
-      }
-    }
-
-    out.push(
-      new Paragraph({
-        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-        children: headerChildren,
-      }),
-    );
-
-    if (nonEmpty(p.entity)) {
-      out.push(
-        new Paragraph({
-          spacing: { after: SP_AFTER },
-          children: [bodyRun(p.entity)],
-        }),
-      );
-    }
+    const descParas: Paragraph[] = [];
 
     if (nonEmpty(p.description)) {
-      out.push(
-        new Paragraph({
-          spacing: { after: SP_AFTER },
-          children: [bodyRun(p.description)],
-        }),
-      );
+      descParas.push(textPara(p.description, { color: GRAY, bold: true }));
     }
 
     if (p.highlights && p.highlights.length > 0) {
       const valid = p.highlights.filter(nonEmpty);
       for (let i = 0; i < valid.length; i++) {
-        out.push(
-          new Paragraph({
-            spacing: { after: SP_AFTER },
-            indent: { left: 240 },
-            children: [bodyRun(`${i + 1}. ${valid[i]}`)],
-          }),
+        descParas.push(
+          textPara(`${i + 1}. ${valid[i]}`, { color: GRAY, bold: true }),
         );
       }
     }
 
     if (p.keywords && p.keywords.length > 0) {
-      const validKw = p.keywords.filter(nonEmpty);
-      if (validKw.length > 0) {
-        out.push(
-          new Paragraph({
-            spacing: { after: SP_AFTER },
-            children: [bodyRun(`关键词：${validKw.join("、")}`)],
-          }),
+      const kw = p.keywords.filter(nonEmpty);
+      if (kw.length > 0) {
+        descParas.push(
+          textPara(`关键词：${kw.join("、")}`, { color: GRAY }),
         );
       }
     }
+
+    if (descParas.length > 0) {
+      rows.push(fullWidthRow(descParas));
+    }
+
+    rows.push(separatorRow());
   }
 
-  return out;
+  return rows;
 }
 
-// ——————————————————————————
-// Section: 技能
-// ——————————————————————————
-
-export function buildSkillsSection(
-  skills: ResumeSkill[] | undefined,
-): Paragraph[] {
+function buildSkillRows(skills: ResumeSkill[] | undefined): TableRow[] {
   if (!skills || skills.length === 0) return [];
+  const rows: TableRow[] = [sectionTitleRow("专业技能")];
 
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("专业技能"));
-
+  const paras: Paragraph[] = [];
   for (const s of skills) {
     const kw = (Array.isArray(s.keywords) ? s.keywords : []).filter(nonEmpty);
     const level = nonEmpty(s.level) ? `（${s.level}）` : "";
     const tail = kw.length > 0 ? `：${kw.join("、")}` : "";
-    out.push(
-      new Paragraph({
-        spacing: { after: SP_AFTER },
-        children: [
-          itemRun(`${s.name}${level}`),
-          bodyRun(tail),
-        ],
-      }),
-    );
+    paras.push(textPara(`${s.name}${level}${tail}`, { color: GRAY }));
   }
 
-  return out;
+  rows.push(fullWidthRow(paras));
+  rows.push(separatorRow());
+  return rows;
 }
 
-// ——————————————————————————
-// Section: 证书荣誉（合并 certifications + awards）
-// ——————————————————————————
-
-function buildCertsAndAwardsSection(resume: ResumeJSON): Paragraph[] {
+function buildCertsRows(resume: ResumeJSON): TableRow[] {
   const certs = resume.certifications ?? [];
   const awards = resume.awards ?? [];
   if (certs.length === 0 && awards.length === 0) return [];
 
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("证书荣誉"));
+  const rows: TableRow[] = [sectionTitleRow("证书荣誉")];
+
+  const paras: Paragraph[] = [];
 
   for (const c of certs) {
     const parts: string[] = [];
     if (nonEmpty(c.issuer)) parts.push(c.issuer);
     if (nonEmpty(c.date)) parts.push(c.date);
     const tail = parts.length > 0 ? `（${parts.join(" · ")}）` : "";
-    out.push(
-      new Paragraph({
-        spacing: { after: SP_AFTER },
-        children: [bodyRun(`${c.name}${tail}`)],
-      }),
-    );
+    paras.push(textPara(`${c.name}${tail}`, { color: GRAY }));
   }
 
   for (const a of awards) {
@@ -523,80 +503,48 @@ function buildCertsAndAwardsSection(resume: ResumeJSON): Paragraph[] {
     if (nonEmpty(a.awarder)) parts.push(a.awarder);
     if (nonEmpty(a.date)) parts.push(a.date);
     const tail = parts.length > 0 ? `（${parts.join(" · ")}）` : "";
-    out.push(
-      new Paragraph({
-        spacing: { after: SP_AFTER },
-        children: [bodyRun(`${a.title}${tail}`)],
-      }),
-    );
+    paras.push(textPara(`${a.title}${tail}`, { color: GRAY }));
   }
 
-  return out;
+  rows.push(fullWidthRow(paras));
+  return rows;
 }
 
-// ——————————————————————————
-// Section: 志愿者 / 语言（保留但不常用）
-// ——————————————————————————
-
-export function buildVolunteerSection(resume: ResumeJSON): Paragraph[] {
+function buildVolunteerRows(resume: ResumeJSON): TableRow[] {
   const items = resume.volunteer;
   if (!items || items.length === 0) return [];
 
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("志愿者经历"));
+  const rows: TableRow[] = [sectionTitleRow("志愿者经历")];
 
   for (const v of items) {
-    const head = nonEmpty(v.position)
-      ? `${v.organization} · ${v.position}`
-      : v.organization;
     const dateText = fmtDateRange(v.startDate, v.endDate);
+    const position = nonEmpty(v.position) ? v.position : "";
+    rows.push(threeColRow(dateText, v.organization, position));
 
-    const headerChildren: ParagraphChild[] = [];
-    if (dateText) {
-      headerChildren.push(bodyRun(dateText));
-      headerChildren.push(bodyRun("    "));
-    }
-    headerChildren.push(itemRun(head));
-
-    out.push(
-      new Paragraph({
-        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
-        children: headerChildren,
-      }),
-    );
-
+    const descParas: Paragraph[] = [];
     if (nonEmpty(v.summary)) {
-      out.push(
-        new Paragraph({
-          spacing: { after: SP_AFTER },
-          children: [bodyRun(v.summary)],
-        }),
-      );
+      descParas.push(textPara(v.summary, { color: GRAY, bold: true }));
     }
-
     if (v.highlights && v.highlights.length > 0) {
       const valid = v.highlights.filter(nonEmpty);
       for (let i = 0; i < valid.length; i++) {
-        out.push(
-          new Paragraph({
-            spacing: { after: SP_AFTER },
-            indent: { left: 240 },
-            children: [bodyRun(`${i + 1}. ${valid[i]}`)],
-          }),
+        descParas.push(
+          textPara(`${i + 1}. ${valid[i]}`, { color: GRAY, bold: true }),
         );
       }
     }
+    if (descParas.length > 0) rows.push(fullWidthRow(descParas));
+    rows.push(separatorRow());
   }
 
-  return out;
+  return rows;
 }
 
-export function buildLanguagesSection(resume: ResumeJSON): Paragraph[] {
+function buildLanguageRows(resume: ResumeJSON): TableRow[] {
   const items = resume.languages;
   if (!items || items.length === 0) return [];
 
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("语言能力"));
+  const rows: TableRow[] = [sectionTitleRow("语言能力")];
 
   const line = items
     .filter((l) => nonEmpty(l.language))
@@ -606,15 +554,10 @@ export function buildLanguagesSection(resume: ResumeJSON): Paragraph[] {
     .join("    ");
 
   if (line) {
-    out.push(
-      new Paragraph({
-        spacing: { after: SP_AFTER },
-        children: [bodyRun(line)],
-      }),
-    );
+    rows.push(fullWidthRow([textPara(line, { color: GRAY })]));
   }
 
-  return out;
+  return rows;
 }
 
 // ——————————————————————————
@@ -624,16 +567,30 @@ export function buildLanguagesSection(resume: ResumeJSON): Paragraph[] {
 export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
   const headerTable = buildHeaderTable(resume.basics);
 
-  const bodyParagraphs: Paragraph[] = [
-    ...buildEducationSection(resume.education),
-    ...buildSummarySection(resume.basics.summary),
-    ...buildWorkSection(resume.work),
-    ...buildProjectsSection(resume.projects),
-    ...buildSkillsSection(resume.skills),
-    ...buildCertsAndAwardsSection(resume),
-    ...buildVolunteerSection(resume),
-    ...buildLanguagesSection(resume),
+  // Table 2: 所有正文 section
+  const contentRows: TableRow[] = [
+    ...buildEducationRows(resume.education),
+    ...buildSummaryRows(resume.basics.summary),
+    ...buildWorkRows(resume.work),
+    ...buildProjectRows(resume.projects),
+    ...buildSkillRows(resume.skills),
+    ...buildCertsRows(resume),
+    ...buildVolunteerRows(resume),
+    ...buildLanguageRows(resume),
   ];
+
+  const contentTable = new Table({
+    width: { size: T2_TOTAL, type: WidthType.DXA },
+    borders: {
+      top: { style: BorderStyle.NONE, size: 0 },
+      bottom: { style: BorderStyle.NONE, size: 0 },
+      left: { style: BorderStyle.NONE, size: 0 },
+      right: { style: BorderStyle.NONE, size: 0 },
+      insideHorizontal: { style: BorderStyle.NONE, size: 0 },
+      insideVertical: { style: BorderStyle.NONE, size: 0 },
+    },
+    rows: contentRows,
+  });
 
   const doc = new Document({
     creator: "resume-tailor",
@@ -643,7 +600,7 @@ export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
         document: {
           run: {
             font: MSYH,
-            size: SIZE_BODY,
+            size: SZ_BODY,
           },
         },
       },
@@ -652,15 +609,20 @@ export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
       {
         properties: {
           page: {
+            size: { width: 11906, height: 16838 },
             margin: {
-              top: "15mm",
-              bottom: "15mm",
-              left: "25mm",
-              right: "25mm",
+              top: 1440,
+              bottom: 1440,
+              left: 1800,
+              right: 866,
             },
           },
         },
-        children: [headerTable, ...bodyParagraphs],
+        children: [
+          headerTable,
+          new Paragraph({ spacing: { after: 120 } }),
+          contentTable,
+        ],
       },
     ],
   });
