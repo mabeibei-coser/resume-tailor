@@ -2,7 +2,7 @@
  * /api/tailor/analyze
  * Step 10：接入真实 LLM（MiniMax 主 + 讯飞 fallback）
  * 输入：{ formData: TailorFormData }
- * 输出：{ data: TailorAnalyzeResult } 形如 { suggestions: 3-5, interview: 5 }
+ * 输出：{ data: TailorAnalyzeResult } 形如 { suggestions: 1-5, interview: 5 }
  *
  * 关键稳定性：
  * - 用 callWithFallback：JSON_ONLY_PREFIX + response_format json_object + AbortController 50s 超时
