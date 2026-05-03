@@ -65,18 +65,29 @@ export default function ReportPage() {
         setDownloadError("生成的简历是空的，请稍后重试");
         return;
       }
+      const filename = `优化简历-${Date.now()}.docx`;
+      const file = new File([blob], filename, { type: blob.type });
+
+      // 安卓优先用 Web Share API（兼容微信/QQ 等内置浏览器）
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: filename });
+          return;
+        } catch {
+          // 用户取消或 share 失败，fallthrough 到 <a download>
+        }
+      }
+
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `优化简历-${Date.now()}.docx`;
-      a.style.display = "none";
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
-      // 延迟清理，给浏览器时间触发下载（Edge / Firefox 偶尔需要）
       setTimeout(() => {
         a.remove();
         URL.revokeObjectURL(blobUrl);
-      }, 1000);
+      }, 10000);
     } catch (e) {
       console.error("[report] download failed:", e);
       setDownloadError(e instanceof Error ? e.message : "下载失败，请检查网络后重试");
@@ -202,7 +213,7 @@ export default function ReportPage() {
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="ml-auto inline-flex h-11 min-w-[160px] items-center justify-center gap-2 rounded-xl bg-[var(--navy-950)] px-6 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.3)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-px hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.4)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--navy-950)] px-6 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.3)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-px hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.4)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 sm:ml-auto sm:w-auto sm:min-w-[160px]"
             >
               {downloading ? (
                 <><Loader2 className="size-4 animate-spin" />正在生成…</>
