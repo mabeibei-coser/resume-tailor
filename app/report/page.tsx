@@ -44,12 +44,15 @@ export default function ReportPage() {
     if (!report || downloading) return;
     setDownloading(true);
     setDownloadError(null);
+    const url = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/tailor/docx`;
+    console.info("[report] download start →", url);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/tailor/docx`, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resume: report.resume, changes: report.changes }),
       });
+      console.info("[report] download response", res.status, res.headers.get("content-type"));
       if (!res.ok) {
         let msg = `下载失败（${res.status}），请稍后重试`;
         try { const data = await res.json(); if (data?.error) msg = String(data.error); } catch { /* ignore */ }
@@ -57,14 +60,23 @@ export default function ReportPage() {
         return;
       }
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      console.info("[report] download blob size", blob.size);
+      if (!blob.size) {
+        setDownloadError("生成的简历是空的，请稍后重试");
+        return;
+      }
+      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = blobUrl;
       a.download = `优化简历-${Date.now()}.docx`;
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      // 延迟清理，给浏览器时间触发下载（Edge / Firefox 偶尔需要）
+      setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
     } catch (e) {
       console.error("[report] download failed:", e);
       setDownloadError(e instanceof Error ? e.message : "下载失败，请检查网络后重试");
@@ -140,8 +152,8 @@ export default function ReportPage() {
 
             {/* Stats chips */}
             <div className="mt-5 flex flex-wrap gap-2">
-              <StatChip icon={<Zap className="size-3" />} count={report.suggestions.length} label="条优化建议" />
-              <StatChip icon={<MessageSquare className="size-3" />} count={report.interview.length} label="道面试题" />
+              <StatChip icon={<Zap className="size-3" />} count={report.suggestions.length} label="项简历问题" />
+              <StatChip icon={<MessageSquare className="size-3" />} count={report.interview.length} label="道面试问答" />
             </div>
           </div>
         </Reveal>
@@ -349,7 +361,7 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 function SuggestionsBlock({ suggestions }: { suggestions: TailorSuggestion[] }) {
   return (
     <section>
-      <SectionHeader num="01" title="优化建议" caption="Suggestions" count={suggestions.length} />
+      <SectionHeader num="01" title="简历问题项" caption="Issues" count={suggestions.length} />
       {suggestions.length === 0 ? (
         <EmptyHint>该模块暂无数据</EmptyHint>
       ) : (
@@ -370,17 +382,15 @@ function SuggestionCard({ suggestion: s, index: i }: { suggestion: TailorSuggest
         {String(i + 1).padStart(2, "0")}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
-            {s.title}
-          </h3>
-          <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-amber-700">
-            JD 关联
-          </span>
-        </div>
+        <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
+          {s.title}
+        </h3>
         <p className="mt-1.5 text-sm leading-[1.65] text-[var(--report-ink-muted)]">
           {s.problem}
-          <span className="ml-2 inline-flex translate-y-[-1px] items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
+          <span className="ml-2 inline-flex translate-y-[-1px] items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
+            <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2.5 6L5 8.5L9.5 3.5" />
+            </svg>
             已优化
           </span>
         </p>
@@ -530,7 +540,7 @@ function ChangeRow({ change }: { change: DiffChange }) {
 function InterviewBlock({ questions }: { questions: TailorInterviewQuestion[] }) {
   return (
     <section>
-      <SectionHeader num="02" title="可能被问的面试题" caption="Interview" count={questions.length} />
+      <SectionHeader num="02" title="该岗位高频面试问答" caption="Interview" count={questions.length} />
       {questions.length === 0 ? (
         <EmptyHint>该模块暂无数据</EmptyHint>
       ) : (
