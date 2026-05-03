@@ -1,21 +1,15 @@
 /**
- * Step 17 · DOCX Builder
+ * DOCX Builder — 模板风格：微软雅黑 + 蓝色主题 + 表格头部
  *
- * 把 ResumeJSON 渲染成 .docx 文档（docx v9.6.1），输出 Buffer 供 API 流式下载。
- *
- * 排版规范（plan v3.2）：
- * - 大标题（人名）：SimHei 16pt，居中
- * - 二级标题（"工作经历" / "教育背景" / "项目经验" / "技能"）：SimHei 14pt
- * - 公司+岗位 / 学校+专业 / 项目名：SimHei 12pt
- * - 正文 / bullet：SimSun 11pt
- * - 段落间距：标题前 6pt，段落间 4pt
- * - 页边距：上下 20mm，左右 25mm
- *
- * docx v9 API 关键点：
- * - size 用半点（16pt = 32, 14pt = 28, 12pt = 24, 11pt = 22）
- * - before / after spacing 用二十分之一点（6pt = 120, 4pt = 80）
- * - font 字段是 IFontAttributesProperties（ascii / cs / eastAsia / hAnsi / hint）
- * - bullet 用 paragraph 的 `bullet: { level: 0 }`
+ * 对标模板规范：
+ * - 字体：微软雅黑（全文）
+ * - 主题色：#4874CB（姓名、求职意向、section 标题）
+ * - 姓名：22pt，蓝色，加粗
+ * - 求职意向：12pt，蓝色，加粗
+ * - Section 标题：字间距加宽（教 育 背 景），12pt，加粗
+ * - 正文：10.5pt
+ * - 工作描述：编号列表（1. 2. 3.）
+ * - 页边距：上下 15mm，左右 25mm
  */
 
 import { Buffer } from "node:buffer";
@@ -27,7 +21,13 @@ import {
   AlignmentType,
   TabStopType,
   TabStopPosition,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
   type ParagraphChild,
+  type ITableCellBorders,
 } from "docx";
 
 import type {
@@ -40,37 +40,45 @@ import type {
 } from "./types";
 
 // ——————————————————————————
-// 字体常量
+// 字体 & 颜色常量
 // ——————————————————————————
 
-const SIM_HEI = {
-  ascii: "SimHei",
-  cs: "SimHei",
-  eastAsia: "SimHei",
-  hAnsi: "SimHei",
+const MSYH = {
+  ascii: "Microsoft YaHei",
+  cs: "Microsoft YaHei",
+  eastAsia: "Microsoft YaHei",
+  hAnsi: "Microsoft YaHei",
 } as const;
 
-const SIM_SUN = {
-  ascii: "SimSun",
-  cs: "SimSun",
-  eastAsia: "SimSun",
-  hAnsi: "SimSun",
-} as const;
+const ACCENT_BLUE = "4874CB";
 
 // 字号（半点）
-const SIZE_NAME = 32;       // 16pt - 姓名
-const SIZE_SECTION = 28;    // 14pt - 二级标题
-const SIZE_ITEM = 24;       // 12pt - 公司 / 学校 / 项目
-const SIZE_BODY = 22;       // 11pt - 正文 / bullet
+const SIZE_NAME = 44;       // 22pt
+const SIZE_LABEL = 24;      // 12pt — 求职意向
+const SIZE_SECTION = 24;    // 12pt — section 标题
+const SIZE_ITEM = 21;       // 10.5pt — 公司/学校行
+const SIZE_BODY = 21;       // 10.5pt — 正文
 
 // 段落间距（1/20 pt）
-const SPACING_BEFORE_SECTION = 240; // 12pt - 二级标题前留白多一点
-const SPACING_BEFORE_TITLE = 120;   // 6pt
-const SPACING_AFTER_PARA = 80;      // 4pt
+const SP_BEFORE_SECTION = 200; // 10pt
+const SP_AFTER_SECTION = 80;   // 4pt
+const SP_BEFORE_ITEM = 100;    // 5pt
+const SP_AFTER = 60;           // 3pt
+
+const NO_BORDER: ITableCellBorders = {
+  top: { style: BorderStyle.NONE, size: 0 },
+  bottom: { style: BorderStyle.NONE, size: 0 },
+  left: { style: BorderStyle.NONE, size: 0 },
+  right: { style: BorderStyle.NONE, size: 0 },
+};
 
 // ——————————————————————————
 // 工具函数
 // ——————————————————————————
+
+function nonEmpty(s: string | undefined): s is string {
+  return typeof s === "string" && s.trim().length > 0;
+}
 
 function fmtDateRange(start?: string, end?: string): string {
   const s = (start ?? "").trim();
@@ -81,111 +89,132 @@ function fmtDateRange(start?: string, end?: string): string {
   return `${s} - ${e}`;
 }
 
-function nonEmpty(s: string | undefined): s is string {
-  return typeof s === "string" && s.trim().length > 0;
+function spacedTitle(text: string): string {
+  return text.split("").join(" ");
 }
 
-// 中文正文 Run（SimSun 11pt）
-function bodyRun(text: string, opts: { bold?: boolean } = {}): TextRun {
+function bodyRun(text: string, opts: { bold?: boolean; color?: string } = {}): TextRun {
   return new TextRun({
     text,
-    font: SIM_SUN,
+    font: MSYH,
     size: SIZE_BODY,
     bold: opts.bold,
+    color: opts.color,
   });
 }
 
-// 黑体小标题 Run（SimHei 12pt）
-function itemRun(text: string, opts: { size?: number } = {}): TextRun {
+function itemRun(text: string, opts: { bold?: boolean; color?: string; size?: number } = {}): TextRun {
   return new TextRun({
     text,
-    font: SIM_HEI,
+    font: MSYH,
     size: opts.size ?? SIZE_ITEM,
-    bold: true,
+    bold: opts.bold ?? true,
+    color: opts.color,
   });
 }
 
 // ——————————————————————————
-// Section: basics
+// Header: 表格布局（姓名 + 求职意向 + 联系方式）
 // ——————————————————————————
 
-export function buildBasicsSection(basics: ResumeBasics): Paragraph[] {
-  const out: Paragraph[] = [];
-
-  // 姓名 - 大标题，居中
-  out.push(
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: SPACING_AFTER_PARA },
-      children: [
-        new TextRun({
-          text: basics.name,
-          font: SIM_HEI,
-          size: SIZE_NAME,
-          bold: true,
-        }),
-      ],
-    }),
-  );
-
-  // label（一句话定位）
-  if (nonEmpty(basics.label)) {
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: SPACING_AFTER_PARA },
-        children: [bodyRun(basics.label)],
-      }),
-    );
-  }
-
-  // 联系方式（一行：电话 | 邮箱 | url）
-  const contactParts: string[] = [];
-  if (nonEmpty(basics.phone)) contactParts.push(basics.phone);
-  if (nonEmpty(basics.email)) contactParts.push(basics.email);
-  if (nonEmpty(basics.url)) contactParts.push(basics.url);
-  // location.city 也并入联系方式行
+function buildHeaderTable(basics: ResumeBasics): Table {
+  const contactLines: string[] = [];
+  if (nonEmpty(basics.phone)) contactLines.push(`手机：${basics.phone}`);
+  if (nonEmpty(basics.email)) contactLines.push(`邮箱：${basics.email}`);
   const city = basics.location?.city;
-  if (nonEmpty(city)) contactParts.push(city);
+  if (nonEmpty(city)) contactLines.push(`现居：${city}`);
+  if (nonEmpty(basics.url)) contactLines.push(basics.url);
 
-  if (contactParts.length > 0) {
-    out.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: SPACING_AFTER_PARA },
-        children: [bodyRun(contactParts.join(" | "))],
+  const labelText = nonEmpty(basics.label) ? `求职意向：${basics.label}` : "";
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.NONE, size: 0 },
+      bottom: { style: BorderStyle.NONE, size: 0 },
+      left: { style: BorderStyle.NONE, size: 0 },
+      right: { style: BorderStyle.NONE, size: 0 },
+      insideHorizontal: { style: BorderStyle.NONE, size: 0 },
+      insideVertical: { style: BorderStyle.NONE, size: 0 },
+    },
+    rows: [
+      new TableRow({
+        children: [
+          // 左列：姓名
+          new TableCell({
+            borders: NO_BORDER,
+            width: { size: 35, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                spacing: { after: 40 },
+                children: [
+                  new TextRun({
+                    text: basics.name,
+                    font: MSYH,
+                    size: SIZE_NAME,
+                    bold: true,
+                    color: ACCENT_BLUE,
+                  }),
+                ],
+              }),
+              ...(labelText
+                ? [
+                    new Paragraph({
+                      spacing: { after: 40 },
+                      children: [
+                        new TextRun({
+                          text: labelText,
+                          font: MSYH,
+                          size: SIZE_LABEL,
+                          bold: true,
+                          color: ACCENT_BLUE,
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
+            ],
+          }),
+          // 右列：联系方式
+          new TableCell({
+            borders: NO_BORDER,
+            width: { size: 65, type: WidthType.PERCENTAGE },
+            children:
+              contactLines.length > 0
+                ? contactLines.map(
+                    (line) =>
+                      new Paragraph({
+                        alignment: AlignmentType.RIGHT,
+                        spacing: { after: 30 },
+                        children: [bodyRun(line)],
+                      }),
+                  )
+                : [new Paragraph({})],
+          }),
+        ],
       }),
-    );
-  }
-
-  // summary 段落
-  if (nonEmpty(basics.summary)) {
-    out.push(...buildSectionTitle("个人简介"));
-    out.push(
-      new Paragraph({
-        spacing: { after: SPACING_AFTER_PARA },
-        children: [bodyRun(basics.summary)],
-      }),
-    );
-  }
-
-  return out;
+    ],
+  });
 }
 
 // ——————————————————————————
-// 二级标题（工作经历 / 教育背景 / ...）
+// Section 标题（蓝色加粗 + 底部蓝线）
 // ——————————————————————————
 
 function buildSectionTitle(text: string): Paragraph[] {
   return [
     new Paragraph({
-      spacing: { before: SPACING_BEFORE_SECTION, after: SPACING_AFTER_PARA },
+      spacing: { before: SP_BEFORE_SECTION, after: SP_AFTER_SECTION },
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 6, color: ACCENT_BLUE },
+      },
       children: [
         new TextRun({
-          text,
-          font: SIM_HEI,
+          text: spacedTitle(text),
+          font: MSYH,
           size: SIZE_SECTION,
           bold: true,
+          color: ACCENT_BLUE,
         }),
       ],
     }),
@@ -193,67 +222,7 @@ function buildSectionTitle(text: string): Paragraph[] {
 }
 
 // ——————————————————————————
-// Section: work
-// ——————————————————————————
-
-export function buildWorkSection(work: ResumeWork[] | undefined): Paragraph[] {
-  if (!work || work.length === 0) return [];
-
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("工作经历"));
-
-  for (const w of work) {
-    // 公司+岗位（左）+ 日期（右），用 tab stop 实现两端对齐
-    const companyText = nonEmpty(w.position) ? `${w.name} · ${w.position}` : w.name;
-    const dateText = fmtDateRange(w.startDate, w.endDate);
-
-    const headerChildren: ParagraphChild[] = [itemRun(companyText)];
-    if (dateText) {
-      headerChildren.push(new TextRun({ text: "\t", font: SIM_SUN, size: SIZE_BODY }));
-      headerChildren.push(bodyRun(dateText));
-    }
-    if (nonEmpty(w.location)) {
-      headerChildren.push(bodyRun(`  ${w.location}`));
-    }
-
-    out.push(
-      new Paragraph({
-        spacing: { before: SPACING_BEFORE_TITLE, after: SPACING_AFTER_PARA },
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-        children: headerChildren,
-      }),
-    );
-
-    // summary 段落
-    if (nonEmpty(w.summary)) {
-      out.push(
-        new Paragraph({
-          spacing: { after: SPACING_AFTER_PARA },
-          children: [bodyRun(w.summary)],
-        }),
-      );
-    }
-
-    // highlights bullets
-    if (w.highlights && w.highlights.length > 0) {
-      for (const h of w.highlights) {
-        if (!nonEmpty(h)) continue;
-        out.push(
-          new Paragraph({
-            bullet: { level: 0 },
-            spacing: { after: SPACING_AFTER_PARA },
-            children: [bodyRun(h)],
-          }),
-        );
-      }
-    }
-  }
-
-  return out;
-}
-
-// ——————————————————————————
-// Section: education
+// Section: 教育背景
 // ——————————————————————————
 
 export function buildEducationSection(
@@ -265,45 +234,45 @@ export function buildEducationSection(
   out.push(...buildSectionTitle("教育背景"));
 
   for (const e of education) {
-    // 学校+学历（左）+ 日期（右）
-    const studyType = nonEmpty(e.studyType) ? e.studyType : "";
-    const head = studyType ? `${e.institution} · ${studyType}` : e.institution;
     const dateText = fmtDateRange(e.startDate, e.endDate);
+    const studyType = nonEmpty(e.studyType) ? e.studyType : "";
+    const area = nonEmpty(e.area) ? e.area : "";
+    const right = [area, studyType].filter(Boolean).join(" / ");
 
-    const headerChildren: ParagraphChild[] = [itemRun(head)];
+    const headerChildren: ParagraphChild[] = [];
     if (dateText) {
-      headerChildren.push(new TextRun({ text: "\t", font: SIM_SUN, size: SIZE_BODY }));
       headerChildren.push(bodyRun(dateText));
+      headerChildren.push(bodyRun("    "));
+    }
+    headerChildren.push(itemRun(e.institution));
+    if (right) {
+      headerChildren.push(new TextRun({ text: "\t", font: MSYH, size: SIZE_BODY }));
+      headerChildren.push(bodyRun(right));
     }
 
     out.push(
       new Paragraph({
-        spacing: { before: SPACING_BEFORE_TITLE, after: SPACING_AFTER_PARA },
+        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
         tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
         children: headerChildren,
       }),
     );
 
-    // 专业 / GPA
-    const detailParts: string[] = [];
-    if (nonEmpty(e.area)) detailParts.push(`专业：${e.area}`);
-    if (nonEmpty(e.score)) detailParts.push(`GPA / 排名：${e.score}`);
-    if (detailParts.length > 0) {
+    if (nonEmpty(e.score)) {
       out.push(
         new Paragraph({
-          spacing: { after: SPACING_AFTER_PARA },
-          children: [bodyRun(detailParts.join("    "))],
+          spacing: { after: SP_AFTER },
+          children: [bodyRun(`GPA / 排名：${e.score}`)],
         }),
       );
     }
 
-    // courses
     if (e.courses && e.courses.length > 0) {
       const validCourses = e.courses.filter(nonEmpty);
       if (validCourses.length > 0) {
         out.push(
           new Paragraph({
-            spacing: { after: SPACING_AFTER_PARA },
+            spacing: { after: SP_AFTER },
             children: [bodyRun(`相关课程：${validCourses.join("、")}`)],
           }),
         );
@@ -315,7 +284,102 @@ export function buildEducationSection(
 }
 
 // ——————————————————————————
-// Section: projects
+// Section: 个人优势总结
+// ——————————————————————————
+
+function buildSummarySection(summary: string | undefined): Paragraph[] {
+  if (!nonEmpty(summary)) return [];
+
+  const out: Paragraph[] = [];
+  out.push(...buildSectionTitle("个人优势总结"));
+
+  const lines = summary
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i].replace(/^\d+[.、．]\s*/, "");
+    out.push(
+      new Paragraph({
+        spacing: { after: SP_AFTER },
+        children: [bodyRun(`${i + 1}. ${text}`)],
+      }),
+    );
+  }
+
+  return out;
+}
+
+// ——————————————————————————
+// Section: 工作经历
+// ——————————————————————————
+
+export function buildWorkSection(work: ResumeWork[] | undefined): Paragraph[] {
+  if (!work || work.length === 0) return [];
+
+  const out: Paragraph[] = [];
+  out.push(...buildSectionTitle("工作经历"));
+
+  for (const w of work) {
+    const dateText = fmtDateRange(w.startDate, w.endDate);
+    const position = nonEmpty(w.position) ? w.position : "";
+
+    const headerChildren: ParagraphChild[] = [];
+    if (dateText) {
+      headerChildren.push(bodyRun(dateText));
+      headerChildren.push(bodyRun("    "));
+    }
+    headerChildren.push(itemRun(w.name));
+    if (position) {
+      headerChildren.push(new TextRun({ text: "\t", font: MSYH, size: SIZE_BODY }));
+      headerChildren.push(itemRun(position));
+    }
+
+    out.push(
+      new Paragraph({
+        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
+        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+        children: headerChildren,
+      }),
+    );
+
+    if (nonEmpty(w.summary)) {
+      out.push(
+        new Paragraph({
+          spacing: { after: SP_AFTER },
+          children: [bodyRun(w.summary)],
+        }),
+      );
+    }
+
+    if (w.highlights && w.highlights.length > 0) {
+      const valid = w.highlights.filter(nonEmpty);
+      if (valid.length > 0) {
+        out.push(
+          new Paragraph({
+            spacing: { after: SP_AFTER },
+            children: [bodyRun("工作描述：", { bold: true })],
+          }),
+        );
+        for (let i = 0; i < valid.length; i++) {
+          out.push(
+            new Paragraph({
+              spacing: { after: SP_AFTER },
+              indent: { left: 240 },
+              children: [bodyRun(`${i + 1}. ${valid[i]}`)],
+            }),
+          );
+        }
+      }
+    }
+  }
+
+  return out;
+}
+
+// ——————————————————————————
+// Section: 项目经验
 // ——————————————————————————
 
 export function buildProjectsSection(
@@ -329,68 +393,67 @@ export function buildProjectsSection(
   for (const p of projects) {
     const dateText = fmtDateRange(p.startDate, p.endDate);
 
-    const headerChildren: ParagraphChild[] = [itemRun(p.name)];
+    const headerChildren: ParagraphChild[] = [];
     if (dateText) {
-      headerChildren.push(new TextRun({ text: "\t", font: SIM_SUN, size: SIZE_BODY }));
       headerChildren.push(bodyRun(dateText));
+      headerChildren.push(bodyRun("    "));
+    }
+    headerChildren.push(itemRun(p.name));
+
+    if (p.roles && p.roles.length > 0) {
+      const validRoles = p.roles.filter(nonEmpty);
+      if (validRoles.length > 0) {
+        headerChildren.push(new TextRun({ text: "\t", font: MSYH, size: SIZE_BODY }));
+        headerChildren.push(bodyRun(validRoles.join(" / ")));
+      }
     }
 
     out.push(
       new Paragraph({
-        spacing: { before: SPACING_BEFORE_TITLE, after: SPACING_AFTER_PARA },
+        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
         tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
         children: headerChildren,
       }),
     );
 
-    // entity / roles 一行（如有）
-    const subParts: string[] = [];
-    if (nonEmpty(p.entity)) subParts.push(p.entity);
-    if (p.roles && p.roles.length > 0) {
-      const validRoles = p.roles.filter(nonEmpty);
-      if (validRoles.length > 0) subParts.push(validRoles.join(" / "));
-    }
-    if (subParts.length > 0) {
+    if (nonEmpty(p.entity)) {
       out.push(
         new Paragraph({
-          spacing: { after: SPACING_AFTER_PARA },
-          children: [bodyRun(subParts.join("  "))],
+          spacing: { after: SP_AFTER },
+          children: [bodyRun(p.entity)],
         }),
       );
     }
 
-    // description
     if (nonEmpty(p.description)) {
       out.push(
         new Paragraph({
-          spacing: { after: SPACING_AFTER_PARA },
+          spacing: { after: SP_AFTER },
           children: [bodyRun(p.description)],
         }),
       );
     }
 
-    // highlights bullets
     if (p.highlights && p.highlights.length > 0) {
-      for (const h of p.highlights) {
-        if (!nonEmpty(h)) continue;
+      const valid = p.highlights.filter(nonEmpty);
+      for (let i = 0; i < valid.length; i++) {
         out.push(
           new Paragraph({
-            bullet: { level: 0 },
-            spacing: { after: SPACING_AFTER_PARA },
-            children: [bodyRun(h)],
+            spacing: { after: SP_AFTER },
+            indent: { left: 240 },
+            children: [bodyRun(`${i + 1}. ${valid[i]}`)],
           }),
         );
       }
     }
 
-    // keywords
     if (p.keywords && p.keywords.length > 0) {
       const validKw = p.keywords.filter(nonEmpty);
       if (validKw.length > 0) {
         out.push(
           new Paragraph({
-            spacing: { after: SPACING_AFTER_PARA },
-            children: [bodyRun(`技术关键词：${validKw.join("、")}`)],
+            spacing: { after: SP_AFTER },
+            children: [bodyRun(`关键词：${validKw.join("、")}`)],
           }),
         );
       }
@@ -401,7 +464,7 @@ export function buildProjectsSection(
 }
 
 // ——————————————————————————
-// Section: skills
+// Section: 技能
 // ——————————————————————————
 
 export function buildSkillsSection(
@@ -410,15 +473,15 @@ export function buildSkillsSection(
   if (!skills || skills.length === 0) return [];
 
   const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("技能"));
+  out.push(...buildSectionTitle("专业技能"));
 
   for (const s of skills) {
-    const kw = (s.keywords ?? []).filter(nonEmpty);
+    const kw = (Array.isArray(s.keywords) ? s.keywords : []).filter(nonEmpty);
     const level = nonEmpty(s.level) ? `（${s.level}）` : "";
     const tail = kw.length > 0 ? `：${kw.join("、")}` : "";
     out.push(
       new Paragraph({
-        spacing: { after: SPACING_AFTER_PARA },
+        spacing: { after: SP_AFTER },
         children: [
           itemRun(`${s.name}${level}`),
           bodyRun(tail),
@@ -431,12 +494,51 @@ export function buildSkillsSection(
 }
 
 // ——————————————————————————
-// Section: volunteer / awards / certifications / languages
+// Section: 证书荣誉（合并 certifications + awards）
 // ——————————————————————————
 
-export function buildVolunteerSection(
-  resume: ResumeJSON,
-): Paragraph[] {
+function buildCertsAndAwardsSection(resume: ResumeJSON): Paragraph[] {
+  const certs = resume.certifications ?? [];
+  const awards = resume.awards ?? [];
+  if (certs.length === 0 && awards.length === 0) return [];
+
+  const out: Paragraph[] = [];
+  out.push(...buildSectionTitle("证书荣誉"));
+
+  for (const c of certs) {
+    const parts: string[] = [];
+    if (nonEmpty(c.issuer)) parts.push(c.issuer);
+    if (nonEmpty(c.date)) parts.push(c.date);
+    const tail = parts.length > 0 ? `（${parts.join(" · ")}）` : "";
+    out.push(
+      new Paragraph({
+        spacing: { after: SP_AFTER },
+        children: [bodyRun(`${c.name}${tail}`)],
+      }),
+    );
+  }
+
+  for (const a of awards) {
+    const parts: string[] = [];
+    if (nonEmpty(a.awarder)) parts.push(a.awarder);
+    if (nonEmpty(a.date)) parts.push(a.date);
+    const tail = parts.length > 0 ? `（${parts.join(" · ")}）` : "";
+    out.push(
+      new Paragraph({
+        spacing: { after: SP_AFTER },
+        children: [bodyRun(`${a.title}${tail}`)],
+      }),
+    );
+  }
+
+  return out;
+}
+
+// ——————————————————————————
+// Section: 志愿者 / 语言（保留但不常用）
+// ——————————————————————————
+
+export function buildVolunteerSection(resume: ResumeJSON): Paragraph[] {
   const items = resume.volunteer;
   if (!items || items.length === 0) return [];
 
@@ -444,18 +546,21 @@ export function buildVolunteerSection(
   out.push(...buildSectionTitle("志愿者经历"));
 
   for (const v of items) {
-    const head = nonEmpty(v.position) ? `${v.organization} · ${v.position}` : v.organization;
+    const head = nonEmpty(v.position)
+      ? `${v.organization} · ${v.position}`
+      : v.organization;
     const dateText = fmtDateRange(v.startDate, v.endDate);
-    const headerChildren: ParagraphChild[] = [itemRun(head)];
+
+    const headerChildren: ParagraphChild[] = [];
     if (dateText) {
-      headerChildren.push(new TextRun({ text: "\t", font: SIM_SUN, size: SIZE_BODY }));
       headerChildren.push(bodyRun(dateText));
+      headerChildren.push(bodyRun("    "));
     }
+    headerChildren.push(itemRun(head));
 
     out.push(
       new Paragraph({
-        spacing: { before: SPACING_BEFORE_TITLE, after: SPACING_AFTER_PARA },
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+        spacing: { before: SP_BEFORE_ITEM, after: SP_AFTER },
         children: headerChildren,
       }),
     );
@@ -463,83 +568,24 @@ export function buildVolunteerSection(
     if (nonEmpty(v.summary)) {
       out.push(
         new Paragraph({
-          spacing: { after: SPACING_AFTER_PARA },
+          spacing: { after: SP_AFTER },
           children: [bodyRun(v.summary)],
         }),
       );
     }
 
     if (v.highlights && v.highlights.length > 0) {
-      for (const h of v.highlights) {
-        if (!nonEmpty(h)) continue;
+      const valid = v.highlights.filter(nonEmpty);
+      for (let i = 0; i < valid.length; i++) {
         out.push(
           new Paragraph({
-            bullet: { level: 0 },
-            spacing: { after: SPACING_AFTER_PARA },
-            children: [bodyRun(h)],
+            spacing: { after: SP_AFTER },
+            indent: { left: 240 },
+            children: [bodyRun(`${i + 1}. ${valid[i]}`)],
           }),
         );
       }
     }
-  }
-
-  return out;
-}
-
-export function buildAwardsSection(resume: ResumeJSON): Paragraph[] {
-  const items = resume.awards;
-  if (!items || items.length === 0) return [];
-
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("荣誉奖项"));
-
-  for (const a of items) {
-    const parts: string[] = [];
-    if (nonEmpty(a.awarder)) parts.push(a.awarder);
-    if (nonEmpty(a.date)) parts.push(a.date);
-    const tail = parts.length > 0 ? `（${parts.join(" · ")}）` : "";
-    const children: ParagraphChild[] = [itemRun(a.title), bodyRun(tail)];
-
-    out.push(
-      new Paragraph({
-        bullet: { level: 0 },
-        spacing: { after: SPACING_AFTER_PARA },
-        children,
-      }),
-    );
-
-    if (nonEmpty(a.summary)) {
-      out.push(
-        new Paragraph({
-          spacing: { after: SPACING_AFTER_PARA },
-          children: [bodyRun(a.summary)],
-        }),
-      );
-    }
-  }
-
-  return out;
-}
-
-export function buildCertificationsSection(resume: ResumeJSON): Paragraph[] {
-  const items = resume.certifications;
-  if (!items || items.length === 0) return [];
-
-  const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("证书"));
-
-  for (const c of items) {
-    const parts: string[] = [];
-    if (nonEmpty(c.issuer)) parts.push(c.issuer);
-    if (nonEmpty(c.date)) parts.push(c.date);
-    const tail = parts.length > 0 ? `（${parts.join(" · ")}）` : "";
-    out.push(
-      new Paragraph({
-        bullet: { level: 0 },
-        spacing: { after: SPACING_AFTER_PARA },
-        children: [itemRun(c.name), bodyRun(tail)],
-      }),
-    );
   }
 
   return out;
@@ -550,17 +596,19 @@ export function buildLanguagesSection(resume: ResumeJSON): Paragraph[] {
   if (!items || items.length === 0) return [];
 
   const out: Paragraph[] = [];
-  out.push(...buildSectionTitle("语言"));
+  out.push(...buildSectionTitle("语言能力"));
 
   const line = items
     .filter((l) => nonEmpty(l.language))
-    .map((l) => (nonEmpty(l.fluency) ? `${l.language}（${l.fluency}）` : l.language))
+    .map((l) =>
+      nonEmpty(l.fluency) ? `${l.language}（${l.fluency}）` : l.language,
+    )
     .join("    ");
 
   if (line) {
     out.push(
       new Paragraph({
-        spacing: { after: SPACING_AFTER_PARA },
+        spacing: { after: SP_AFTER },
         children: [bodyRun(line)],
       }),
     );
@@ -574,27 +622,27 @@ export function buildLanguagesSection(resume: ResumeJSON): Paragraph[] {
 // ——————————————————————————
 
 export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
-  const children: Paragraph[] = [
-    ...buildBasicsSection(resume.basics),
-    ...buildWorkSection(resume.work),
+  const headerTable = buildHeaderTable(resume.basics);
+
+  const bodyParagraphs: Paragraph[] = [
     ...buildEducationSection(resume.education),
+    ...buildSummarySection(resume.basics.summary),
+    ...buildWorkSection(resume.work),
     ...buildProjectsSection(resume.projects),
     ...buildSkillsSection(resume.skills),
+    ...buildCertsAndAwardsSection(resume),
     ...buildVolunteerSection(resume),
-    ...buildAwardsSection(resume),
-    ...buildCertificationsSection(resume),
     ...buildLanguagesSection(resume),
   ];
 
   const doc = new Document({
     creator: "resume-tailor",
     title: resume.basics.name ? `${resume.basics.name} - 简历` : "简历",
-    // 全文档默认字体
     styles: {
       default: {
         document: {
           run: {
-            font: SIM_SUN,
+            font: MSYH,
             size: SIZE_BODY,
           },
         },
@@ -605,15 +653,14 @@ export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
         properties: {
           page: {
             margin: {
-              // 1 mm = 56.7 twips；上下 20mm ≈ 1134；左右 25mm ≈ 1418
-              top: "20mm",
-              bottom: "20mm",
+              top: "15mm",
+              bottom: "15mm",
               left: "25mm",
               right: "25mm",
             },
           },
         },
-        children,
+        children: [headerTable, ...bodyParagraphs],
       },
     ],
   });
