@@ -11,10 +11,40 @@ interface ModeOption {
   title: string;
   badge: string;
   badgeTone: "positive" | "warning";
-  caption: string;
   description: string;
   glyph: React.ReactNode;
 }
+
+// 适中：羽毛笔 — 轻触、精准、克制
+const GlyphModerate = (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path
+      d="M20 4C16 4 10 7 8 14l-4 6h4l1-3c1 .5 2 .5 3 0l1 3h4l-4-6c2-4 4-6 7-7l.5-.5A1 1 0 0 0 20 4Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M8 14c1-2 2.5-3 4-3"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+// 激进：闪电 — 强力、破局、彻底改写
+const GlyphAggressive = (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path
+      d="M13 2L4.5 13H11L9.5 22L20 10H13.5L15 2H13Z"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+      strokeLinecap="round"
+    />
+  </svg>
+);
 
 const OPTIONS: ModeOption[] = [
   {
@@ -22,44 +52,16 @@ const OPTIONS: ModeOption[] = [
     title: "适中",
     badge: "推荐",
     badgeTone: "positive",
-    caption: "稳妥型 · 润色 <10%",
-    description:
-      "保留原经历，重点突出与目标岗位匹配的能力 / 业绩 / 项目，整体优化风格稳妥",
-    glyph: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M4 12h6M14 12h6M4 7h12M4 17h16"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
+    description: "保留原经历，精准匹配 JD，整体风格稳妥",
+    glyph: GlyphModerate,
   },
   {
     value: "aggressive",
     title: "激进",
     badge: "仅参考",
     badgeTone: "warning",
-    caption: "激进型 · 润色 <30%",
-    description:
-      "可基于简历内容做联想、重组结构、补强 JD 匹配点，整体风格激进",
-    glyph: (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M12 3c1.5 3 4.5 4.5 4.5 8.5A4.5 4.5 0 0 1 12 16a4.5 4.5 0 0 1-4.5-4.5C7.5 7.5 10.5 6 12 3Z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M12 19v2M9 20l-1 1M15 20l1 1"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
+    description: "重组结构、补强匹配点，大幅度改写",
+    glyph: GlyphAggressive,
   },
 ];
 
@@ -82,17 +84,20 @@ export function ModeRadio({
     <div
       role="radiogroup"
       aria-label="优化程度"
-      className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2", className)}
+      className={cn("grid grid-cols-2 gap-3", className)}
     >
       {OPTIONS.map((opt) => {
         const active = value === opt.value;
+        const isAggressive = opt.value === "aggressive";
         return (
           <label
             key={opt.value}
             className={cn(
-              "group relative flex cursor-pointer flex-col gap-2 rounded-2xl border bg-white p-4 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              "group relative flex cursor-pointer flex-col gap-2.5 rounded-2xl border bg-white p-3.5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-4",
               active
-                ? "border-[var(--blue-500)] bg-[var(--blue-50)]/60 shadow-[0_8px_28px_-12px_oklch(0.55_0.18_250/0.35)]"
+                ? isAggressive
+                  ? "border-amber-400 bg-amber-50/50 shadow-[0_8px_28px_-12px_oklch(0.62_0.14_55/0.35)]"
+                  : "border-[var(--blue-500)] bg-[var(--blue-50)]/60 shadow-[0_8px_28px_-12px_oklch(0.55_0.18_250/0.35)]"
                 : "border-[var(--border)] hover:border-[var(--blue-300)] hover:shadow-[0_4px_18px_-12px_oklch(0.55_0.18_250/0.25)]",
               disabled && "cursor-not-allowed opacity-60"
             )}
@@ -107,36 +112,54 @@ export function ModeRadio({
               className="sr-only"
             />
 
+            {/* 图标 + 选中圈 */}
             <div className="flex items-start justify-between">
               <div
                 className={cn(
-                  "flex size-10 items-center justify-center rounded-xl transition-colors duration-300",
+                  "flex size-9 items-center justify-center rounded-xl transition-colors duration-300",
                   active
-                    ? "bg-[var(--blue-500)] text-white"
+                    ? isAggressive
+                      ? "bg-amber-500 text-white"
+                      : "bg-[var(--blue-500)] text-white"
+                    : isAggressive
+                    ? "bg-amber-50 text-amber-500 group-hover:bg-amber-100"
                     : "bg-[var(--blue-50)] text-[var(--blue-500)] group-hover:bg-[var(--blue-100)]"
                 )}
               >
-                <span className="size-5">{opt.glyph}</span>
+                <span className="size-[18px]">{opt.glyph}</span>
               </div>
               <span
                 className={cn(
-                  "flex size-5 items-center justify-center rounded-full border transition-all duration-300",
+                  "flex size-4.5 items-center justify-center rounded-full border transition-all duration-300",
                   active
-                    ? "border-[var(--blue-500)] bg-[var(--blue-500)] text-white"
+                    ? isAggressive
+                      ? "border-amber-400 bg-amber-400 text-white"
+                      : "border-[var(--blue-500)] bg-[var(--blue-500)] text-white"
                     : "border-[var(--border)] bg-transparent text-transparent"
                 )}
               >
-                <Check className="size-3" strokeWidth={3} />
+                <Check className="size-2.5" strokeWidth={3} />
               </span>
             </div>
 
-            <div className="mt-1 flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-base font-semibold tracking-tight text-[var(--foreground)]">
+            {/* 标题 + badge + 描述 */}
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
                   {opt.title}
                 </span>
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 font-mono text-[9px] font-medium",
+                    opt.badgeTone === "positive"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-amber-50 text-amber-700"
+                  )}
+                >
+                  {opt.badge}
+                </span>
               </div>
-              <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+              <p className="text-[11px] leading-[1.55] text-[var(--muted-foreground)]">
                 {opt.description}
               </p>
             </div>
