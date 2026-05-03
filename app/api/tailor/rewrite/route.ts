@@ -152,20 +152,25 @@ export async function POST(request: Request) {
   }
 
   // ——————————————————————————
-  // Step 1：parseResumeToJson
+  // Step 1：parseResumeToJson（如果前端已预解析则跳过）
   // ——————————————————————————
   let resume: ResumeJSON;
-  try {
-    resume = await parseResumeToJson(formData.resumeText);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[rewrite] resume parser 失败，返回兜底 mock:", msg);
-    const result: TailorRewriteResult & { fallback?: true } = {
-      resume: FALLBACK_RESUME,
-      changes: FALLBACK_CHANGES,
-      fallback: true,
-    };
-    return NextResponse.json({ data: result });
+  if (formData.parsedResume && formData.parsedResume.basics) {
+    resume = formData.parsedResume;
+    console.info("[rewrite] using pre-parsed resume, skipping Step 1");
+  } else {
+    try {
+      resume = await parseResumeToJson(formData.resumeText);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn("[rewrite] resume parser 失败，返回兜底 mock:", msg);
+      const result: TailorRewriteResult & { fallback?: true } = {
+        resume: FALLBACK_RESUME,
+        changes: FALLBACK_CHANGES,
+        fallback: true,
+      };
+      return NextResponse.json({ data: result });
+    }
   }
 
   // ——————————————————————————
