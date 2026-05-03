@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   ChevronDown,
   Download,
-  FileText,
   Loader2,
   MessageSquare,
   Sparkles,
@@ -142,11 +141,6 @@ export default function ReportPage() {
             {/* Stats chips */}
             <div className="mt-5 flex flex-wrap gap-2">
               <StatChip icon={<Zap className="size-3" />} count={report.suggestions.length} label="条优化建议" />
-              <StatChip
-                icon={<FileText className="size-3" />}
-                count={visibleChanges.length}
-                label="处改写"
-              />
               <StatChip icon={<MessageSquare className="size-3" />} count={report.interview.length} label="道面试题" />
             </div>
           </div>
@@ -158,9 +152,6 @@ export default function ReportPage() {
             <SuggestionsBlock suggestions={report.suggestions} />
           </Reveal>
           <Reveal mounted={mounted} delay={240}>
-            <ChangesBlock changes={visibleChanges} />
-          </Reveal>
-          <Reveal mounted={mounted} delay={340}>
             <InterviewBlock questions={report.interview} />
           </Reveal>
         </div>
@@ -378,10 +369,15 @@ function SuggestionCard({ suggestion: s, index: i }: { suggestion: TailorSuggest
       <span className="mt-0.5 shrink-0 font-mono text-xs font-bold tabular-nums text-[var(--blue-200)]">
         {String(i + 1).padStart(2, "0")}
       </span>
-      <div>
-        <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
-          {s.title}
-        </h3>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
+            {s.title}
+          </h3>
+          <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-amber-700">
+            JD 关联
+          </span>
+        </div>
         <p className="mt-1.5 text-sm leading-[1.65] text-[var(--report-ink-muted)]">
           {s.problem}
           <span className="ml-2 inline-flex translate-y-[-1px] items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
@@ -534,7 +530,7 @@ function ChangeRow({ change }: { change: DiffChange }) {
 function InterviewBlock({ questions }: { questions: TailorInterviewQuestion[] }) {
   return (
     <section>
-      <SectionHeader num="03" title="可能被问的面试题" caption="Interview" count={questions.length} />
+      <SectionHeader num="02" title="可能被问的面试题" caption="Interview" count={questions.length} />
       {questions.length === 0 ? (
         <EmptyHint>该模块暂无数据</EmptyHint>
       ) : (
