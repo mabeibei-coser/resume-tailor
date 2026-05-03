@@ -96,9 +96,10 @@ export default function FormPage() {
   };
 
   return (
-    <main className="relative min-h-[100dvh] overflow-x-hidden bg-white">
+    <main className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--background)]">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.88_0.05_240/0.4),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_105%,oklch(0.94_0.015_60/0.3),transparent)]" />
       </div>
 
       <header className="mx-auto flex max-w-6xl items-center justify-start px-5 py-6 sm:px-8 sm:py-8">

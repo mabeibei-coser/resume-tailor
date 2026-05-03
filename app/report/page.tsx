@@ -102,9 +102,10 @@ export default function ReportPage() {
   const isFallback = Boolean((report as unknown as { fallback?: boolean }).fallback);
 
   return (
-    <main className="relative min-h-[100dvh] overflow-x-hidden bg-white pb-28">
+    <main className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--background)] pb-28">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.88_0.05_240/0.3),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.88_0.05_240/0.4),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_105%,oklch(0.94_0.015_60/0.3),transparent)]" />
       </div>
 
       {/* Header */}
@@ -201,8 +202,8 @@ export default function ReportPage() {
             </button>
           </div>
         )}
-        <div className="border-t border-[var(--blue-100)] bg-white/90 shadow-[0_-4px_20px_-4px_oklch(0.55_0.18_250/0.08)] backdrop-blur-xl">
-          <div className="mx-auto flex max-w-4xl items-center gap-4 px-5 py-4 sm:px-8">
+        <div className="mx-auto max-w-3xl px-3 pb-3 sm:px-4 sm:pb-4">
+          <div className="flex items-center gap-4 rounded-2xl border border-[var(--blue-100)] bg-white/90 px-5 py-4 shadow-[0_-4px_20px_-4px_oklch(0.55_0.18_250/0.08)] backdrop-blur-xl sm:px-6">
             <div className="hidden flex-1 sm:block">
               <p className="text-sm font-medium text-[var(--navy-900)]">简历定制完成</p>
               <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
@@ -234,7 +235,7 @@ export default function ReportPage() {
 
 function SkeletonPage() {
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-gradient-to-br from-[var(--blue-50)] via-white to-[var(--blue-100)]/40 pb-32">
+    <main className="min-h-[100dvh] overflow-x-hidden bg-[var(--background)] pb-32">
       <header className="mx-auto flex max-w-4xl items-center justify-between px-5 py-5 sm:px-8 sm:py-6">
         <div className="h-4 w-16 animate-pulse rounded-full bg-[var(--muted)]/60" />
         <div className="h-7 w-36 animate-pulse rounded-lg bg-[var(--muted)]/60" />
