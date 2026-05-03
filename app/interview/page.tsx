@@ -528,7 +528,7 @@ export default function InterviewPage() {
         {/* 底部行动区 */}
         <div className="w-full flex flex-col items-center gap-2 min-h-[100px]">
           <AnimatePresence mode="wait">
-            {(phase === "greeting" || phase === "idle") && (
+            {phase === "idle" && (
               <motion.button
                 key="start-btn"
                 initial={{ opacity: 0, y: 6 }}
