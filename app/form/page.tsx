@@ -106,21 +106,19 @@ export default function FormPage() {
 
       <div className="mx-auto max-w-2xl px-5 pb-20 sm:px-8">
         <div
-          className={cnFade(mounted, "mt-12 mb-10")}
+          className={cnFade(mounted, "mt-6 mb-10")}
           style={{ transitionDelay: "60ms" }}
         >
-          <p className="mb-3 text-xs font-medium tracking-[0.2em] uppercase text-[var(--blue-500)]">
-            Resume Tailor
-          </p>
           <h1
-            className="font-bold leading-[1.08] tracking-tight text-[var(--navy-950)]"
-            style={{ fontSize: "clamp(2.4rem, 5.5vw, 3.8rem)" }}
+            className="font-heading font-black leading-[1.1] tracking-tight text-[var(--navy-950)]"
+            style={{ fontSize: "clamp(2.2rem, 5.5vw, 3.6rem)" }}
           >
-            把你的简历改成
+            AI 简历精准修
             <br />
-            <span className="text-[var(--blue-600)]">面试官想看到的样子</span>
+            <span className="text-[var(--blue-600)]">面试问答超一流</span>
           </h1>
-          <p className="mt-4 text-[15px] leading-[1.7] text-[var(--muted-foreground)] max-w-lg">
+          <div aria-hidden className="mt-3 h-[3px] w-12 rounded-full bg-[var(--blue-500)]" />
+          <p className="mt-2 text-[14px] leading-[1.7] text-[var(--muted-foreground)] max-w-md">
             上传简历 + 贴入 JD，AI 逐条对照岗位要求，精准改写每一行。
           </p>
         </div>
