@@ -374,36 +374,20 @@ function SuggestionsBlock({ suggestions }: { suggestions: TailorSuggestion[] }) 
 
 function SuggestionCard({ suggestion: s, index: i }: { suggestion: TailorSuggestion; index: number }) {
   return (
-    <div className="grid grid-cols-[2.5rem_1fr] gap-4 rounded-2xl border border-[var(--blue-100)] bg-white/80 p-5 shadow-[0_1px_8px_-4px_oklch(0.55_0.18_250/0.07)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--blue-200)] hover:shadow-[0_6px_22px_-6px_oklch(0.55_0.18_250/0.14)] sm:gap-5 sm:p-6">
-      <div className="flex flex-col items-center gap-2 pt-0.5">
-        <span className="font-mono text-2xl font-bold leading-none tabular-nums text-[var(--blue-100)]">
-          {String(i + 1).padStart(2, "0")}
-        </span>
-        <div className="w-px flex-1 bg-gradient-to-b from-[var(--blue-100)] to-transparent" />
-      </div>
-      <div className="space-y-3 pb-0.5">
+    <div className="flex gap-3.5 rounded-2xl border border-[var(--blue-100)] bg-white/80 px-5 py-4 shadow-[0_1px_8px_-4px_oklch(0.55_0.18_250/0.07)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--blue-200)] hover:shadow-[0_6px_22px_-6px_oklch(0.55_0.18_250/0.14)] sm:px-6 sm:py-5">
+      <span className="mt-0.5 shrink-0 font-mono text-xs font-bold tabular-nums text-[var(--blue-200)]">
+        {String(i + 1).padStart(2, "0")}
+      </span>
+      <div>
         <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
           {s.title}
         </h3>
-        <div className="space-y-2 text-sm leading-[1.65]">
-          <p className="flex gap-2.5 text-[var(--report-ink-muted)]">
-            <span className="mt-1 shrink-0 font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--muted-foreground)]/60">
-              问题
-            </span>
-            {s.problem}
-          </p>
-          <p className="flex gap-2.5 text-[var(--blue-700)]">
-            <span className="mt-1 shrink-0 font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--blue-500)]/70">
-              建议
-            </span>
-            {s.action}
-          </p>
-          {s.example && (
-            <blockquote className="mt-1 rounded-xl border border-[var(--blue-200)] border-l-2 border-l-[var(--blue-400)] bg-[var(--blue-50)]/60 px-3.5 py-2.5 text-[13px] leading-[1.6] text-[var(--navy-800)]">
-              {s.example}
-            </blockquote>
-          )}
-        </div>
+        <p className="mt-1.5 text-sm leading-[1.65] text-[var(--report-ink-muted)]">
+          {s.problem}
+          <span className="ml-2 inline-flex translate-y-[-1px] items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-700">
+            已优化
+          </span>
+        </p>
       </div>
     </div>
   );
