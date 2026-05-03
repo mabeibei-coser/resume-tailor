@@ -126,7 +126,7 @@ function cell(
   opts: {
     width?: number;
     columnSpan?: number;
-    verticalMerge?: VerticalMergeType;
+    verticalMerge?: typeof VerticalMergeType[keyof typeof VerticalMergeType];
   } = {},
 ): TableCell {
   return new TableCell({
