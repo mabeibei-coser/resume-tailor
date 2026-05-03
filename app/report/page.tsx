@@ -76,7 +76,7 @@ export default function ReportPage() {
 
   if (!report) return <SkeletonPage />;
 
-  const flaggedCount = report.changes.filter((c) => c.flagged).length;
+  const visibleChanges = report.changes.filter((c) => !c.flagged);
   const isFallback = Boolean((report as unknown as { fallback?: boolean }).fallback);
 
   return (
@@ -144,10 +144,8 @@ export default function ReportPage() {
               <StatChip icon={<Zap className="size-3" />} count={report.suggestions.length} label="条优化建议" />
               <StatChip
                 icon={<FileText className="size-3" />}
-                count={report.changes.length}
+                count={visibleChanges.length}
                 label="处改写"
-                badge={flaggedCount > 0 ? `${flaggedCount} 已拦` : undefined}
-                warning={flaggedCount > 0}
               />
               <StatChip icon={<MessageSquare className="size-3" />} count={report.interview.length} label="道面试题" />
             </div>
@@ -160,7 +158,7 @@ export default function ReportPage() {
             <SuggestionsBlock suggestions={report.suggestions} />
           </Reveal>
           <Reveal mounted={mounted} delay={240}>
-            <ChangesBlock changes={report.changes} />
+            <ChangesBlock changes={visibleChanges} />
           </Reveal>
           <Reveal mounted={mounted} delay={340}>
             <InterviewBlock questions={report.interview} />
@@ -446,10 +444,30 @@ const ACTION_LABEL: Record<string, string> = {
   delete: "删除",
 };
 
+function formatChangeText(text: string | undefined | null): string | null {
+  if (!text?.trim()) return null;
+  const t = text.trim();
+  if (t.startsWith("{") || t.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(t);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const o = parsed as Record<string, unknown>;
+        if (typeof o.name === "string") {
+          const kws = Array.isArray(o.keywords) ? (o.keywords as unknown[]).join("、") : "";
+          return kws ? `${o.name}（${kws}）` : o.name;
+        }
+      }
+    } catch { /* not JSON */ }
+  }
+  return text;
+}
+
 function ChangeRow({ change }: { change: DiffChange }) {
   const flagged = !!change.flagged;
   const badgeCls = ACTION_BADGE[change.action] ?? ACTION_BADGE.replace;
   const actionLabel = ACTION_LABEL[change.action] ?? change.action;
+  const displayOld = formatChangeText(change.oldText);
+  const displayNew = formatChangeText(change.newText);
 
   return (
     <div
@@ -479,8 +497,8 @@ function ChangeRow({ change }: { change: DiffChange }) {
         <div className="space-y-1.5">
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">原句</p>
           <div className="min-h-[3rem] rounded-xl border border-[var(--border)] bg-[var(--muted)]/30 p-3 text-[13px] leading-[1.65] text-[var(--report-ink-soft)] whitespace-pre-wrap break-words">
-            {change.oldText?.trim() ? (
-              change.oldText
+            {displayOld ? (
+              displayOld
             ) : (
               <span className="italic opacity-60">（空 / 新增）</span>
             )}
@@ -497,8 +515,8 @@ function ChangeRow({ change }: { change: DiffChange }) {
                 : "border-[var(--blue-200)] bg-[var(--blue-50)]/60 text-[var(--navy-900)]"
             }`}
           >
-            {change.newText?.trim() ? (
-              change.newText
+            {displayNew ? (
+              displayNew
             ) : (
               <span className="italic opacity-60">（删除）</span>
             )}
