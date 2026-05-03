@@ -135,19 +135,6 @@ export function ModeRadio({
                 <span className="text-base font-semibold tracking-tight text-[var(--foreground)]">
                   {opt.title}
                 </span>
-                <span
-                  className={cn(
-                    "rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
-                    opt.badgeTone === "positive"
-                      ? "border-[var(--semantic-positive)]/30 bg-[var(--semantic-positive)]/10 text-[var(--semantic-positive)]"
-                      : "border-[var(--semantic-warning)]/30 bg-[var(--semantic-warning)]/10 text-[var(--semantic-warning)]"
-                  )}
-                >
-                  {opt.badge}
-                </span>
-                <span className="text-[11px] text-[var(--muted-foreground)]">
-                  {opt.caption}
-                </span>
               </div>
               <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
                 {opt.description}
