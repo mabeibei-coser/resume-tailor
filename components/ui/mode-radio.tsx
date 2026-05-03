@@ -9,6 +9,8 @@ export type ModeValue = "moderate" | "aggressive";
 interface ModeOption {
   value: ModeValue;
   title: string;
+  badge: string;
+  badgeTone: "positive" | "warning";
   caption: string;
   description: string;
   glyph: React.ReactNode;
@@ -18,8 +20,11 @@ const OPTIONS: ModeOption[] = [
   {
     value: "moderate",
     title: "适中",
-    caption: "Refine",
-    description: "保留原经历事实，仅调整措辞顺序",
+    badge: "推荐",
+    badgeTone: "positive",
+    caption: "稳妥型 · 润色 <10%",
+    description:
+      "保留原经历，重点突出与目标岗位匹配的能力 / 业绩 / 项目，整体优化风格稳妥",
     glyph: (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden>
         <path
@@ -34,8 +39,11 @@ const OPTIONS: ModeOption[] = [
   {
     value: "aggressive",
     title: "激进",
-    caption: "Reshape",
-    description: "可重组段落、突出 JD 匹配点",
+    badge: "仅参考",
+    badgeTone: "warning",
+    caption: "激进型 · 润色 <30%",
+    description:
+      "可基于简历内容做联想、重组结构、补强 JD 匹配点，整体风格激进",
     glyph: (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden>
         <path
@@ -122,12 +130,22 @@ export function ModeRadio({
               </span>
             </div>
 
-            <div className="mt-1 flex flex-col gap-1">
-              <div className="flex items-baseline gap-2">
+            <div className="mt-1 flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-base font-semibold tracking-tight text-[var(--foreground)]">
                   {opt.title}
                 </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted-foreground)]">
+                <span
+                  className={cn(
+                    "rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+                    opt.badgeTone === "positive"
+                      ? "border-[var(--semantic-positive)]/30 bg-[var(--semantic-positive)]/10 text-[var(--semantic-positive)]"
+                      : "border-[var(--semantic-warning)]/30 bg-[var(--semantic-warning)]/10 text-[var(--semantic-warning)]"
+                  )}
+                >
+                  {opt.badge}
+                </span>
+                <span className="text-[11px] text-[var(--muted-foreground)]">
                   {opt.caption}
                 </span>
               </div>
