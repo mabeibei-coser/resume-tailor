@@ -87,14 +87,9 @@ export default function FormPage() {
   };
 
   return (
-    <main className="relative min-h-[100dvh] overflow-x-hidden bg-gradient-to-br from-[var(--blue-50)] via-white to-[var(--blue-100)]/40">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-      >
-        <div className="absolute -top-40 -left-32 size-[28rem] rounded-full bg-[var(--blue-200)]/40 blur-3xl" />
-        <div className="absolute top-[40%] -right-40 size-[32rem] rounded-full bg-[var(--blue-100)]/60 blur-3xl" />
-        <div className="absolute bottom-[-10%] left-[20%] size-[24rem] rounded-full bg-[var(--blue-100)]/50 blur-3xl" />
+    <main className="relative min-h-[100dvh] overflow-x-hidden bg-white">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.88_0.05_240/0.4),transparent)]" />
       </div>
 
       <header className="mx-auto flex max-w-6xl items-center justify-start px-5 py-6 sm:px-8 sm:py-8">
@@ -109,35 +104,24 @@ export default function FormPage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-5 pb-20 sm:px-8">
-        <h1
-          className={cnFade(
-            mounted,
-            "text-center font-bold leading-[1.05] tracking-tight text-[var(--navy-900)]"
-          )}
-          style={{
-            transitionDelay: "60ms",
-            fontSize: "clamp(2.75rem, 6.4vw, 4.5rem)",
-          }}
-        >
-          开始一次
-          <br />
-          <span className="bg-gradient-to-r from-[var(--blue-600)] to-[var(--blue-400)] bg-clip-text text-transparent">
-            精准的简历定制
-          </span>
-        </h1>
-
         <div
-          className={cnFade(
-            mounted,
-            "mt-10 flex items-center justify-center gap-2 text-sm text-[var(--muted-foreground)]"
-          )}
-          style={{ transitionDelay: "100ms" }}
+          className={cnFade(mounted, "mt-12 mb-10")}
+          style={{ transitionDelay: "60ms" }}
         >
-          <Sparkles
-            className="size-3.5 text-[var(--blue-500)]"
-            strokeWidth={2.5}
-          />
-          <span>填好下面两项，AI 能改得更精准</span>
+          <p className="mb-3 text-xs font-medium tracking-[0.2em] uppercase text-[var(--blue-500)]">
+            Resume Tailor
+          </p>
+          <h1
+            className="font-bold leading-[1.08] tracking-tight text-[var(--navy-950)]"
+            style={{ fontSize: "clamp(2.4rem, 5.5vw, 3.8rem)" }}
+          >
+            把你的简历改成
+            <br />
+            <span className="text-[var(--blue-600)]">面试官想看到的样子</span>
+          </h1>
+          <p className="mt-4 text-[15px] leading-[1.7] text-[var(--muted-foreground)] max-w-lg">
+            上传简历 + 贴入 JD，AI 逐条对照岗位要求，精准改写每一行。
+          </p>
         </div>
 
         <form
@@ -148,7 +132,6 @@ export default function FormPage() {
           <FieldCard
             num="01"
             label="目标岗位"
-            caption="Target Role"
             mounted={mounted}
             delay={140}
           >
@@ -167,7 +150,6 @@ export default function FormPage() {
           <FieldCard
             num="02"
             label="岗位 JD"
-            caption="Job Description"
             mounted={mounted}
             delay={200}
             hint={
@@ -196,10 +178,8 @@ export default function FormPage() {
           <FieldCard
             num="03"
             label="上传个人简历"
-            caption="Resume File"
             mounted={mounted}
             delay={260}
-            variant="primary"
           >
             <FileUpload
               value={resume}
@@ -216,10 +196,8 @@ export default function FormPage() {
           <FieldCard
             num="04"
             label="优化程度"
-            caption="Tailor Mode"
             mounted={mounted}
             delay={320}
-            variant="primary"
           >
             <ModeRadio
               value={modeValue as ModeValue}
@@ -249,20 +227,18 @@ export default function FormPage() {
                 {isSubmitting ? (
                   <>
                     <span className="size-1.5 animate-pulse rounded-full bg-white/80" />
-                    正在提交…
+                    正在准备…
                   </>
                 ) : (
                   <>
-                    开始优化
+                    生成我的定制简历
                     <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </>
                 )}
               </span>
             </Button>
             <p className="text-center text-xs leading-relaxed text-[var(--muted-foreground)]">
-              提交后将进入语音访谈（约 1–3 分钟），用来补充经历细节。
-              <br />
-              你也可以跳过访谈，直接生成简历。
+              提交后进入 1–2 分钟 AI 访谈，补充经历细节效果更好。可跳过直接生成。
             </p>
           </div>
         </form>
@@ -284,63 +260,33 @@ export default function FormPage() {
 function FieldCard({
   num,
   label,
-  caption,
   hint,
   children,
   mounted,
   delay,
-  variant = "secondary",
 }: {
   num: string;
   label: string;
-  caption: string;
   hint?: React.ReactNode;
   children: React.ReactNode;
   mounted: boolean;
   delay: number;
-  variant?: "secondary" | "primary";
 }) {
-  const isPrimary = variant === "primary";
   return (
     <section
       className={cnFade(
         mounted,
-        cn(
-          "rounded-2xl backdrop-blur transition-shadow duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          isPrimary
-            ? "border border-[var(--blue-200)] bg-white p-6 shadow-[0_4px_20px_-8px_oklch(0.55_0.18_250/0.18)] hover:shadow-[0_10px_32px_-10px_oklch(0.55_0.18_250/0.28)] sm:p-7"
-            : "border border-[var(--border)] bg-white/50 p-4 hover:bg-white/70 sm:p-5"
-        )
+        "rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm transition-shadow duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:shadow-md sm:p-6"
       )}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <div
-        className={cn(
-          "flex items-baseline justify-between gap-3",
-          isPrimary ? "mb-4" : "mb-3"
-        )}
-      >
-        <div className="flex items-baseline gap-3">
-          <span
-            className={cn(
-              "font-mono tabular-nums",
-              isPrimary
-                ? "text-sm text-[var(--blue-500)]"
-                : "text-xs text-[var(--blue-500)]/80"
-            )}
-          >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex size-6 items-center justify-center rounded-full bg-[var(--blue-50)] font-mono text-[11px] font-bold tabular-nums text-[var(--blue-600)]">
             {num}
           </span>
-          <span
-            className={cn(
-              "font-semibold tracking-tight text-[var(--navy-800)]",
-              isPrimary ? "text-base" : "text-sm"
-            )}
-          >
+          <span className="text-sm font-semibold text-[var(--navy-900)]">
             {label}
-          </span>
-          <span className="hidden font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted-foreground)] sm:inline">
-            {caption}
           </span>
         </div>
         {hint && <div>{hint}</div>}
