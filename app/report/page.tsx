@@ -46,7 +46,7 @@ export default function ReportPage() {
     setDownloading(true);
     setDownloadError(null);
     try {
-      const res = await fetch("/api/tailor/docx", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/tailor/docx`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resume: report.resume, changes: report.changes }),

@@ -18,14 +18,15 @@ import {
   consumeReportPrefetch,
   type PrefetchSectionKey,
 } from "@/lib/report-prefetch";
+import { API_BASE } from "@/lib/api-base";
 
 const SECTION_CONFIG: {
   key: PrefetchSectionKey;
   endpoint: string;
   label: string;
 }[] = [
-  { key: "analyze", endpoint: "/api/tailor/analyze", label: "分析建议 + 面试问答" },
-  { key: "rewrite", endpoint: "/api/tailor/rewrite", label: "改写简历 + Diff" },
+  { key: "analyze", endpoint: `${API_BASE}/api/tailor/analyze`, label: "分析建议 + 面试问答" },
+  { key: "rewrite", endpoint: `${API_BASE}/api/tailor/rewrite`, label: "改写简历 + Diff" },
 ];
 
 export type SectionStatus =

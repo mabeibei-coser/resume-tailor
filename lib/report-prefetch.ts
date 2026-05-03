@@ -15,10 +15,11 @@
  */
 
 import type { TailorFormData } from "@/lib/types";
+import { API_BASE } from "@/lib/api-base";
 
 const PREFETCH_SECTIONS = [
-  { key: "analyze", endpoint: "/api/tailor/analyze" },
-  { key: "rewrite", endpoint: "/api/tailor/rewrite" },
+  { key: "analyze", endpoint: `${API_BASE}/api/tailor/analyze` },
+  { key: "rewrite", endpoint: `${API_BASE}/api/tailor/rewrite` },
 ] as const;
 
 export type PrefetchSectionKey = (typeof PREFETCH_SECTIONS)[number]["key"];

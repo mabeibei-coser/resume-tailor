@@ -40,7 +40,7 @@ export function FileUpload({
   maxSizeMB = 5,
   className,
   disabled = false,
-  endpoint = "/api/resume/parse",
+  endpoint = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/resume/parse`,
 }: FileUploadProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [status, setStatus] = React.useState<Status>(

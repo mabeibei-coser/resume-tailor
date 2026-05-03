@@ -140,7 +140,7 @@ export default function InterviewPage() {
 
     // 1) 开场白 TTS
     setPhaseSync("greeting");
-    fetch("/api/interview/question", {
+    fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interview/question`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ greeting: true }),
@@ -157,7 +157,7 @@ export default function InterviewPage() {
       .catch(() => setPhaseSync("idle"));
 
     // 2) 与 greeting 并行预取 Q1
-    prefetchedQ1Ref.current = fetch("/api/interview/question", {
+    prefetchedQ1Ref.current = fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interview/question`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetPosition: pos, previousTurns: [] }),
@@ -199,7 +199,7 @@ export default function InterviewPage() {
   const fetchQuestionFallback = useCallback(
     async (prevTurns: InterviewTurn[]) => {
       try {
-        const res = await fetch("/api/interview/question", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interview/question`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -261,7 +261,7 @@ export default function InterviewPage() {
   }, [recorder, setPhaseSync]);
 
   const prefetchQ2Background = useCallback((turn1: InterviewTurn) => {
-    prefetchedQ2Ref.current = fetch("/api/interview/question", {
+    prefetchedQ2Ref.current = fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interview/question`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -287,7 +287,7 @@ export default function InterviewPage() {
         const formData = new FormData();
         formData.append("audio", result.blob, "recording");
         formData.append("mimeType", result.mimeType);
-        const res = await fetch("/api/interview/transcribe", { method: "POST", body: formData });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/interview/transcribe`, { method: "POST", body: formData });
         const data = (await res.json()) as { text: string };
         recognized = data.text ?? "";
       }
