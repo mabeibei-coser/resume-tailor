@@ -5,20 +5,20 @@ export interface BankQuestion {
 }
 
 /**
- * Resume Tailor 访谈题库（精简版）
- * 只保留 1 题，开放式提问 + 内置 scaffolding 例子（参考 ai-interview-question-design skill）。
- * Q2 由 LLM 基于用户对 Q1 的回答动态追问，不在此处硬编码。
+ * Resume Tailor 访谈题库
+ * 顺序：先简历优化诉求（更具体、更易作答 → 暖场），再 JD 补充。
+ * id 与位置绑定（q1 = 第一题 / q2 = 第二题），改顺序时连同 text 一起换。
  */
 export const INTERVIEW_QUESTION_BANK: BankQuestion[] = [
   {
     id: "q1",
     tag: "preference",
-    text: "对于这个岗位的信息你还有什么需要补充给我注意的嘛？",
+    text: "对于本次简历优化你有任何想法或者要求可以在这里告诉我。",
   },
   {
     id: "q2",
     tag: "preference",
-    text: "对于本次简历优化你有任何想法或者要求可以在这里告诉我。",
+    text: "对于这个岗位的信息你还有什么需要补充给我注意的嘛？",
   },
 ];
 
