@@ -107,11 +107,15 @@ export interface DiffChange {
 
 export const ResumeBasicsSchema = z.object({
   name: z.string(),
-  label: z.string().optional(), // 当前职位 / 一句话定位
+  label: z.string().optional(), // 当前职位 / 一句话定位 = 求职意向
   email: z.string().optional(),
   phone: z.string().optional(),
   url: z.string().optional(),
-  summary: z.string().optional(), // 自我介绍 / 求职意向
+  summary: z.string().optional(), // 自我介绍 / 求职意向段落
+  // 模板需要的扩展字段（身份相关，不允许 AI 改）
+  birthday: z.string().optional(),          // 1997.2.18 / 1997-02
+  yearsOfExperience: z.string().optional(), // 5 年 / 5+ years
+  hometown: z.string().optional(),          // 籍贯（广东广州）
   location: z.object({
     address: z.string().optional(),
     city: z.string().optional(),
@@ -219,6 +223,9 @@ export type ResumeProject = z.infer<typeof ResumeProjectSchema>;
 // 禁止改的字段：身份相关，AI 不应越权
 export const RESUME_PATH_FORBIDDEN_PATTERNS = [
   /^basics\.name$/,
+  /^basics\.birthday$/,
+  /^basics\.hometown$/,
+  /^basics\.yearsOfExperience$/,
   /^work\[\d+\]\.name$/,       // 公司名
   /^work\[\d+\]\.position$/,   // 历史岗位
   /^work\[\d+\]\.startDate$/,

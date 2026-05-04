@@ -1,0 +1,69 @@
+{
+  "resume": {
+    "basics": {
+      "name": "韩梅梅",
+      "label": "财务专员",
+      "email": "hanmm@example.com",
+      "phone": "13800000001",
+      "summary": "5 年财务岗位经验，熟悉全盘账务及报税流程；曾独立完成多个跨城市分公司账务整合。\n善于跨部门沟通，擅长用 Excel 与金蝶 K3 提升结账效率。",
+      "birthday": "1997.2.18",
+      "yearsOfExperience": "5 年",
+      "hometown": "广东广州",
+      "location": { "city": "广州天河区" }
+    },
+    "work": [
+      {
+        "name": "广州天虹服饰公司",
+        "position": "会计员兼出纳",
+        "startDate": "2020.07",
+        "endDate": "2025.08",
+        "summary": "全盘账务 + 出纳。",
+        "highlights": [
+          "负责现金及银行结算业务，开具发票，编制会计凭证、报表、报税、申购发票",
+          "整理各项手续和凭证，规范公司日常财务工作流程",
+          "完成银行资金入账、出账核对，按时核实未达账项"
+        ]
+      },
+      {
+        "name": "深圳启明会计师事务所",
+        "position": "审计助理",
+        "startDate": "2018.07",
+        "endDate": "2020.06",
+        "highlights": ["对接 6 家中型客户的现场审计", "完成应收账款函证及替代测试程序"]
+      }
+    ],
+    "education": [
+      {
+        "institution": "暨南大学",
+        "area": "财务管理",
+        "studyType": "本科",
+        "startDate": "2014.09",
+        "endDate": "2018.06",
+        "score": "GPA 3.6 / 4.0"
+      }
+    ],
+    "skills": [
+      { "name": "财务工具", "level": "熟练", "keywords": ["金蝶 K3", "用友 U8", "Excel"] },
+      { "name": "税务", "level": "熟练", "keywords": ["增值税申报", "个税专项附加扣除"] }
+    ],
+    "projects": [
+      {
+        "name": "分公司账务整合",
+        "startDate": "2023.04",
+        "endDate": "2023.10",
+        "description": "整合 3 个城市分公司的账套，统一会计政策。",
+        "highlights": ["完成 3 套账套迁移与合并", "梳理跨城市内部交易清单 200+ 条"],
+        "keywords": ["金蝶 K3", "Excel"],
+        "roles": ["项目负责人"]
+      }
+    ],
+    "certifications": [
+      { "name": "中级会计师", "date": "2022.05", "issuer": "财政部" }
+    ],
+    "languages": [
+      { "language": "中文", "fluency": "母语" },
+      { "language": "英文", "fluency": "六级" }
+    ]
+  },
+  "changes": []
+}
