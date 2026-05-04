@@ -47,9 +47,14 @@ export default function ReportPage() {
     try { setReport(JSON.parse(raw) as TailorReport); } catch { router.replace("/loading"); }
   }, [router]);
 
+  const isFallback = Boolean((report as unknown as { fallback?: boolean })?.fallback);
+
   // 挂载即在后台预生成 docx，拿到 token 备用
+  // fallback 模式下 LLM 没真正改写过简历，下载只会得到一份污染数据的 Word
+  // → 直接跳过 prepare，UI 上把按钮锁成"AI 暂不可用"
   useEffect(() => {
     if (!report) return;
+    if (isFallback) return;
     let cancelled = false;
     setPrepareStatus("preparing");
     setDownloadError(null);
@@ -78,10 +83,10 @@ export default function ReportPage() {
         setPrepareStatus("error");
       });
     return () => { cancelled = true; };
-  }, [report]);
+  }, [report, isFallback]);
 
   function handleDownload() {
-    if (prepareStatus !== "ready" || !token) return;
+    if (isFallback || prepareStatus !== "ready" || !token) return;
     const url = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/tailor/docx?token=${encodeURIComponent(token)}`;
     // 用 location.href 触发原生 attachment 下载流（避开 blob: 沙箱拦截 + iOS Safari 文件类型识别）
     window.location.href = url;
@@ -90,7 +95,6 @@ export default function ReportPage() {
   if (!report) return <SkeletonPage />;
 
   const visibleChanges = report.changes.filter((c) => !c.flagged);
-  const isFallback = Boolean((report as unknown as { fallback?: boolean }).fallback);
 
   return (
     <main className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--background)] pb-28">
@@ -192,18 +196,24 @@ export default function ReportPage() {
         <div className="mx-auto max-w-3xl px-3 pb-3 sm:px-4 sm:pb-4">
           <div className="flex items-center gap-4 rounded-2xl border border-[var(--blue-100)] bg-white/90 px-5 py-4 shadow-[0_-4px_20px_-4px_oklch(0.55_0.18_250/0.08)] backdrop-blur-xl sm:px-6">
             <div className="hidden flex-1 sm:block">
-              <p className="text-sm font-medium text-[var(--navy-900)]">简历定制完成</p>
+              <p className="text-sm font-medium text-[var(--navy-900)]">
+                {isFallback ? "AI 服务暂不可用" : "简历定制完成"}
+              </p>
               <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
-                Word 格式，可直接编辑，一键投递
+                {isFallback
+                  ? "本次为通用建议版，无法生成定制 Word，请稍后重试"
+                  : "Word 格式，可直接编辑，一键投递"}
               </p>
             </div>
             <button
               type="button"
-              onClick={handleDownload}
-              disabled={prepareStatus !== "ready"}
+              onClick={isFallback ? () => router.push("/form") : handleDownload}
+              disabled={!isFallback && prepareStatus !== "ready"}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--navy-950)] px-6 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.3)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-px hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.4)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 sm:ml-auto sm:w-auto sm:min-w-[160px]"
             >
-              {prepareStatus === "preparing" ? (
+              {isFallback ? (
+                <><AlertTriangle className="size-4" />重新填写并重试</>
+              ) : prepareStatus === "preparing" ? (
                 <><Loader2 className="size-4 animate-spin" />正在准备…</>
               ) : prepareStatus === "error" ? (
                 <><AlertTriangle className="size-4" />准备失败</>
@@ -324,37 +334,38 @@ function HeroSection({
   count: number;
   interviewCount: number;
 }) {
-  const animated = useCountUp(count, 1100);
+  const animatedCount = useCountUp(count, 1100);
+  const animatedInterview = useCountUp(interviewCount, 1100);
   const [today] = useState(todayDateString);
 
   return (
-    <div className="mb-12 border-b border-[var(--report-border)] pb-10 sm:mb-16 sm:pb-12">
-      {/* Eyebrow：横线 + 状态 + 日期，编辑感 */}
-      <div className="mb-8 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+    <div className="mb-10 border-b border-[var(--report-border)] pb-8 sm:mb-12 sm:pb-10">
+      {/* Eyebrow：横线 + 状态 + 日期 */}
+      <div className="mb-6 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
         <span aria-hidden className="h-px w-6 bg-[var(--report-border)]" />
         <span>分析完成</span>
         <span aria-hidden className="text-[var(--report-divider)]">·</span>
         <span className="tabular-nums">{today}</span>
       </div>
 
-      {/* Hero：思源宋体超大数字 + 基线对齐的小标题 */}
-      <h1 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:gap-x-4">
-        <span
-          className="font-heading text-[96px] font-black leading-none tracking-tight tabular-nums text-[var(--navy-950)] sm:text-[140px]"
-          aria-label={`已找到 ${count} 处可优化内容`}
-        >
-          {animated}
+      {/* 两条平行 stat —— 同字号 + 数字蓝色微强调，宽度不够时自然换行 */}
+      <h1
+        className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 font-heading text-[22px] font-bold leading-[1.35] tracking-tight text-[var(--navy-900)] sm:text-[28px]"
+        aria-label={`${count} 处优化已完成，${interviewCount} 道面试题已就绪`}
+      >
+        <span>
+          <span className="tabular-nums text-[var(--blue-600)]">{animatedCount}</span>
+          {" "}处优化已完成
         </span>
-        <span className="font-heading text-xl font-bold leading-tight text-[var(--navy-800)] sm:text-2xl">
-          处可优化内容
+        <span>
+          <span className="tabular-nums text-[var(--blue-600)]">{animatedInterview}</span>
+          {" "}道面试题已就绪
         </span>
       </h1>
 
-      {/* Meta 单行：替换原 stats chips */}
-      <p className="mt-6 text-sm leading-relaxed text-[var(--muted-foreground)]">
-        AI 对照 JD 逐条检查
-        <span aria-hidden className="mx-2.5 text-[var(--report-divider)]">·</span>
-        共 <span className="font-semibold tabular-nums text-[var(--navy-800)]">{interviewCount}</span> 道面试题已备好
+      {/* Subtitle */}
+      <p className="mt-4 text-sm leading-relaxed text-[var(--muted-foreground)]">
+        AI 对照 JD 逐条检查，以下是具体问题和改法
       </p>
     </div>
   );
