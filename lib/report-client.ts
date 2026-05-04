@@ -49,6 +49,7 @@ export interface GenerateTailorOptions {
 }
 
 // 与 analyze/rewrite stub 的 mock 对齐的最小兜底（防 LLM 全挂时白屏）
+// fallback: true 必须设上 —— TailorReport.fallback 据此挡掉下载按钮 / 显示降级 banner
 const ANALYZE_FALLBACK: TailorAnalyzeResult = {
   suggestions: [
     {
@@ -66,11 +67,13 @@ const ANALYZE_FALLBACK: TailorAnalyzeResult = {
       keypoints: ["现状", "经历亮点", "为何来面试"],
     },
   ],
+  fallback: true,
 };
 
 const REWRITE_FALLBACK: TailorRewriteResult = {
   resume: { basics: { name: "" }, work: [], education: [], skills: [] },
   changes: [],
+  fallback: true,
 };
 
 async function callSection<T>(
@@ -163,6 +166,8 @@ export async function generateTailor(
     interview: analyze.interview,
     resume: rewrite.resume,
     changes: rewrite.changes,
+    // 任一段走兜底 → 标 fallback：报告页据此关闭下载按钮 + 显示降级 banner
+    fallback: Boolean(analyze.fallback || rewrite.fallback),
   };
 }
 
