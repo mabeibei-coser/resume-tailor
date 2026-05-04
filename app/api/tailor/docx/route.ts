@@ -1,30 +1,24 @@
 /**
- * /api/tailor/docx （Step 18 · Download API）
+ * /api/tailor/docx
  * ———————————————
- * 流程（plan v3.2）：
- *   报告页 sessionStorage { resume, changes }
- *     ↓ POST /api/tailor/docx
- *   ResumeJSONSchema.safeParse(resume) 通过 → applyDiffChanges(resume, changes)
- *     ↓ （diff-applier 内部跳过 flagged）
- *   buildResumeDocx(newResume) → Buffer
- *     ↓
- *   200 OK + Content-Disposition: attachment; filename*=UTF-8''<encoded>
- *   <binary docx body>
+ * GET  ?token=xxx → 主路径：prefetch 模式，await 共享 Job Promise，回 docx attachment
+ *                  这是真实 HTTP URL 链路，跨进程安全（解决安卓微信/QQ blob 拦截 + iOS 文件类型识别）
+ * POST { resume, changes } → 兜底路径：直接同步生成（兼容旧客户端 / fallback）
  *
- * 错误：JSON 解析失败 / Zod 校验失败 / docx-builder 抛错 → 4xx/5xx + JSON
+ * 中文文件名走 RFC 5987 的 filename*=UTF-8'' 形式避免乱码。
  */
+
 import { applyDiffChanges } from "@/lib/diff-applier";
 import { buildResumeDocx } from "@/lib/docx-builder";
+import { getJob } from "@/lib/docx-job-store";
 import { ResumeJSONSchema, type DiffChange } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-interface RequestBody {
-  resume?: unknown;
-  changes?: unknown;
-}
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function jsonError(status: number, message: string): Response {
   return new Response(JSON.stringify({ error: message }), {
@@ -33,8 +27,51 @@ function jsonError(status: number, message: string): Response {
   });
 }
 
+function attachmentResponse(buffer: Buffer): Response {
+  const filename = `优化简历-${Date.now()}.docx`;
+  return new Response(new Uint8Array(buffer), {
+    status: 200,
+    headers: new Headers({
+      "Content-Type": DOCX_MIME,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      "Content-Length": buffer.byteLength.toString(),
+      "Cache-Control": "no-store",
+    }),
+  });
+}
+
+// ——————————————————————————
+// GET — prefetch 主路径
+// ——————————————————————————
+
+export async function GET(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  const token = url.searchParams.get("token");
+  if (!token) return jsonError(400, "缺少 token 参数");
+
+  const job = getJob(token);
+  if (!job) return jsonError(404, "下载链接已失效，请刷新页面后重试");
+
+  let buffer: Buffer;
+  try {
+    buffer = await job.promise;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return jsonError(500, `生成 docx 失败：${msg}`);
+  }
+  return attachmentResponse(buffer);
+}
+
+// ——————————————————————————
+// POST — 兜底路径（保留旧行为，便于客户端临时回退）
+// ——————————————————————————
+
+interface RequestBody {
+  resume?: unknown;
+  changes?: unknown;
+}
+
 export async function POST(request: Request): Promise<Response> {
-  // 1. 解析 body
   let body: RequestBody;
   try {
     body = (await request.json()) as RequestBody;
@@ -42,36 +79,22 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError(400, "Body 解析失败：必须是 JSON");
   }
 
-  if (!body || typeof body !== "object") {
-    return jsonError(400, "Body 必须是对象 { resume, changes }");
-  }
-
-  // 2. Zod 校验 resume
-  const parsed = ResumeJSONSchema.safeParse(body.resume);
+  const parsed = ResumeJSONSchema.safeParse(body?.resume);
   if (!parsed.success) {
-    return jsonError(
-      400,
-      `resume 不是合法 ResumeJSON：${parsed.error.message}`,
-    );
+    return jsonError(400, `resume 不是合法 ResumeJSON：${parsed.error.message}`);
   }
-  const resume = parsed.data;
-
-  // 3. changes 必须是数组（具体字段由 diff-applier 容忍处理）
   if (!Array.isArray(body.changes)) {
     return jsonError(400, "changes 必须是 DiffChange[]");
   }
-  const changes = body.changes as DiffChange[];
 
-  // 4. 应用 diff（跳过 flagged）
   let nextResume;
   try {
-    nextResume = applyDiffChanges(resume, changes);
+    nextResume = applyDiffChanges(parsed.data, body.changes as DiffChange[]);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return jsonError(500, `应用 diff 失败：${msg}`);
   }
 
-  // 5. 生成 docx Buffer
   let buffer: Buffer;
   try {
     buffer = await buildResumeDocx(nextResume);
@@ -79,16 +102,5 @@ export async function POST(request: Request): Promise<Response> {
     const msg = e instanceof Error ? e.message : String(e);
     return jsonError(500, `生成 docx 失败：${msg}`);
   }
-
-  // 6. 中文文件名走 RFC 5987（filename*=UTF-8''xxx），避免浏览器乱码
-  const filename = `优化简历-${Date.now()}.docx`;
-  const headers = new Headers({
-    "Content-Type":
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
-    "Content-Length": buffer.byteLength.toString(),
-    "Cache-Control": "no-store",
-  });
-
-  return new Response(new Uint8Array(buffer), { status: 200, headers });
+  return attachmentResponse(buffer);
 }

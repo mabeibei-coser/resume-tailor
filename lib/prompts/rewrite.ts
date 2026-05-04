@@ -55,6 +55,7 @@ export const REWRITE_SYSTEM_PROMPT = `你是一位资深简历改写顾问，专
 
 **禁止改**（这些字段是身份相关或事实，不能由 AI 越权改写）：
 - basics.name
+- basics.birthday / basics.hometown / basics.yearsOfExperience
 - work[*].name（公司名）
 - work[*].position（历史岗位）
 - work[*].startDate / work[*].endDate

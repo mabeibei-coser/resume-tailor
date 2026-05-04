@@ -24,14 +24,23 @@ import type {
 // Page
 // ─────────────────────────────────────────────────
 
+type PrepareStatus = "idle" | "preparing" | "ready" | "error";
+
 export default function ReportPage() {
   const router = useRouter();
   const [report, setReport] = useState<TailorReport | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [prepareStatus, setPrepareStatus] = useState<PrepareStatus>("idle");
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isiOS, setIsiOS] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    if (typeof navigator !== "undefined") {
+      setIsiOS(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+    }
+  }, []);
 
   useEffect(() => {
     let raw: string | null = null;
@@ -40,60 +49,44 @@ export default function ReportPage() {
     try { setReport(JSON.parse(raw) as TailorReport); } catch { router.replace("/loading"); }
   }, [router]);
 
-  async function handleDownload() {
-    if (!report || downloading) return;
-    setDownloading(true);
+  // 挂载即在后台预生成 docx，拿到 token 备用
+  useEffect(() => {
+    if (!report) return;
+    let cancelled = false;
+    setPrepareStatus("preparing");
     setDownloadError(null);
-    const url = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/tailor/docx`;
-    console.info("[report] download start →", url);
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: report.resume, changes: report.changes }),
-      });
-      console.info("[report] download response", res.status, res.headers.get("content-type"));
-      if (!res.ok) {
-        let msg = `下载失败（${res.status}），请稍后重试`;
-        try { const data = await res.json(); if (data?.error) msg = String(data.error); } catch { /* ignore */ }
-        setDownloadError(msg);
-        return;
-      }
-      const blob = await res.blob();
-      console.info("[report] download blob size", blob.size);
-      if (!blob.size) {
-        setDownloadError("生成的简历是空的，请稍后重试");
-        return;
-      }
-      const filename = `优化简历-${Date.now()}.docx`;
-      const file = new File([blob], filename, { type: blob.type });
-
-      // 安卓优先用 Web Share API（兼容微信/QQ 等内置浏览器）
-      if (navigator.canShare?.({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: filename });
-          return;
-        } catch {
-          // 用户取消或 share 失败，fallthrough 到 <a download>
+    const url = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/tailor/docx/prepare`;
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resume: report.resume, changes: report.changes }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          let msg = `准备下载失败（${res.status}）`;
+          try { const data = await res.json(); if (data?.error) msg = String(data.error); } catch { /* ignore */ }
+          throw new Error(msg);
         }
-      }
+        return res.json() as Promise<{ token: string }>;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setToken(data.token);
+        setPrepareStatus("ready");
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setDownloadError(e instanceof Error ? e.message : "准备下载失败，请刷新重试");
+        setPrepareStatus("error");
+      });
+    return () => { cancelled = true; };
+  }, [report]);
 
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        a.remove();
-        URL.revokeObjectURL(blobUrl);
-      }, 10000);
-    } catch (e) {
-      console.error("[report] download failed:", e);
-      setDownloadError(e instanceof Error ? e.message : "下载失败，请检查网络后重试");
-    } finally {
-      setDownloading(false);
-    }
+  function handleDownload() {
+    if (prepareStatus !== "ready" || !token) return;
+    const url = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/tailor/docx?token=${encodeURIComponent(token)}`;
+    // 用 location.href 触发原生 attachment 下载流（避开 blob: 沙箱拦截 + iOS Safari 文件类型识别）
+    window.location.href = url;
   }
 
   if (!report) return <SkeletonPage />;
@@ -194,12 +187,16 @@ export default function ReportPage() {
             </span>
             <button
               type="button"
-              onClick={handleDownload}
-              disabled={downloading}
-              className="shrink-0 rounded-md border border-[var(--semantic-danger)]/40 bg-white px-2 py-0.5 text-[11px] font-medium hover:bg-[var(--semantic-danger)]/5 disabled:opacity-60"
+              onClick={() => router.refresh()}
+              className="shrink-0 rounded-md border border-[var(--semantic-danger)]/40 bg-white px-2 py-0.5 text-[11px] font-medium hover:bg-[var(--semantic-danger)]/5"
             >
-              重试
+              刷新页面
             </button>
+          </div>
+        )}
+        {isiOS && prepareStatus === "ready" && (
+          <div className="border-t border-amber-200/60 bg-amber-50/80 px-5 py-2 text-[11px] leading-[1.5] text-amber-800 sm:px-8">
+            iPhone 用户：点击后会打开预览，请点右上角「分享」→「存到文件」
           </div>
         )}
         <div className="mx-auto max-w-3xl px-3 pb-3 sm:px-4 sm:pb-4">
@@ -213,11 +210,13 @@ export default function ReportPage() {
             <button
               type="button"
               onClick={handleDownload}
-              disabled={downloading}
+              disabled={prepareStatus !== "ready"}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--navy-950)] px-6 text-sm font-semibold text-white shadow-[0_4px_16px_-4px_rgba(0,0,0,0.3)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-px hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.4)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70 sm:ml-auto sm:w-auto sm:min-w-[160px]"
             >
-              {downloading ? (
-                <><Loader2 className="size-4 animate-spin" />正在生成…</>
+              {prepareStatus === "preparing" ? (
+                <><Loader2 className="size-4 animate-spin" />正在准备…</>
+              ) : prepareStatus === "error" ? (
+                <><AlertTriangle className="size-4" />准备失败</>
               ) : (
                 <><Download className="size-4" />下载定制简历</>
               )}
