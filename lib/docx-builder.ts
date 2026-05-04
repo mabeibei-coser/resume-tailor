@@ -73,62 +73,81 @@ function fmtDateRange(start?: string, end?: string): { startDate: string; endDat
 }
 
 function buildViewModel(resume: ResumeJSON): Record<string, unknown> {
+  const education = (resume.education ?? []).map((e) => ({
+    ...fmtDateRange(e.startDate, e.endDate),
+    institution: e.institution ?? "",
+    area: e.area ?? "",
+    studyType: e.studyType ?? "",
+    score: e.score ?? "",
+  }));
+
+  const work = (resume.work ?? []).map((w) => ({
+    ...fmtDateRange(w.startDate, w.endDate),
+    name: w.name ?? "",
+    position: w.position ?? "",
+    summary: w.summary ?? "",
+    highlights: indexedHighlights(w.highlights),
+  }));
+
+  const projects = (resume.projects ?? []).map((p) => ({
+    ...fmtDateRange(p.startDate, p.endDate),
+    name: p.name ?? "",
+    description: p.description ?? "",
+    roles: Array.isArray(p.roles) ? p.roles.filter(nonEmpty) : [],
+    highlights: indexedHighlights(p.highlights),
+    keywords_str: joinKeywords(p.keywords),
+  }));
+
+  const skills = (resume.skills ?? []).map((s) => ({
+    name: s.name ?? "",
+    level_str: nonEmpty(s.level) ? `（${s.level}）` : "",
+    keywords_str: joinKeywords(s.keywords),
+  }));
+
+  const languages = (resume.languages ?? []).map((l) => ({
+    language: l.language ?? "",
+    fluency: l.fluency ?? "",
+  }));
+
+  const certifications = (resume.certifications ?? []).map((c) => ({
+    name: c.name ?? "",
+    tail: joinTail([c.issuer, c.date]),
+  }));
+
+  const awards = (resume.awards ?? []).map((a) => ({
+    title: a.title ?? "",
+    tail: joinTail([a.awarder, a.date]),
+  }));
+
+  const volunteer = (resume.volunteer ?? []).map((v) => ({
+    ...fmtDateRange(v.startDate, v.endDate),
+    organization: v.organization ?? "",
+    position: v.position ?? "",
+    summary: v.summary ?? "",
+    highlights: indexedHighlights(v.highlights),
+  }));
+
+  const basics = resume.basics ?? { name: "" };
+
   return {
-    basics: resume.basics ?? { name: "" },
-
-    education: (resume.education ?? []).map((e) => ({
-      ...fmtDateRange(e.startDate, e.endDate),
-      institution: e.institution ?? "",
-      area: e.area ?? "",
-      studyType: e.studyType ?? "",
-      score: e.score ?? "",
-    })),
-
-    work: (resume.work ?? []).map((w) => ({
-      ...fmtDateRange(w.startDate, w.endDate),
-      name: w.name ?? "",
-      position: w.position ?? "",
-      summary: w.summary ?? "",
-      highlights: indexedHighlights(w.highlights),
-    })),
-
-    projects: (resume.projects ?? []).map((p) => ({
-      ...fmtDateRange(p.startDate, p.endDate),
-      name: p.name ?? "",
-      description: p.description ?? "",
-      roles: Array.isArray(p.roles) ? p.roles.filter(nonEmpty) : [],
-      highlights: indexedHighlights(p.highlights),
-      keywords_str: joinKeywords(p.keywords),
-    })),
-
-    skills: (resume.skills ?? []).map((s) => ({
-      name: s.name ?? "",
-      level_str: nonEmpty(s.level) ? `（${s.level}）` : "",
-      keywords_str: joinKeywords(s.keywords),
-    })),
-
-    languages: (resume.languages ?? []).map((l) => ({
-      language: l.language ?? "",
-      fluency: l.fluency ?? "",
-    })),
-
-    certifications: (resume.certifications ?? []).map((c) => ({
-      name: c.name ?? "",
-      tail: joinTail([c.issuer, c.date]),
-    })),
-
-    awards: (resume.awards ?? []).map((a) => ({
-      title: a.title ?? "",
-      tail: joinTail([a.awarder, a.date]),
-    })),
-
-    volunteer: (resume.volunteer ?? []).map((v) => ({
-      ...fmtDateRange(v.startDate, v.endDate),
-      organization: v.organization ?? "",
-      position: v.position ?? "",
-      summary: v.summary ?? "",
-      highlights: indexedHighlights(v.highlights),
-    })),
+    basics,
+    education,
+    work,
+    projects,
+    skills,
+    languages,
+    certifications,
+    awards,
+    volunteer,
+    // section 级条件渲染开关：空数据时整段（含标题）不渲染，避免孤标题
+    hasEducation: education.length > 0,
+    hasSummary: nonEmpty(basics.summary),
+    hasWork: work.length > 0,
+    hasProjects: projects.length > 0,
+    hasSkills: skills.length > 0,
+    hasLanguages: languages.length > 0,
+    hasCertsOrAwards: certifications.length > 0 || awards.length > 0,
+    hasVolunteer: volunteer.length > 0,
   };
 }
 

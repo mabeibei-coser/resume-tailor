@@ -242,11 +242,15 @@ function buildHeaderTable() {
 // Table 2 行级工具
 // ——————————————————————————
 
-function sectionTitleRow(title) {
+// 加 openMarker（如 "{#hasWork}"）会在 title 之前插一个独占段，
+// docxtemplater paragraphLoop:true 会"吃掉"独占的 marker 段，但保留它的"开 section"语义。
+// 配合 separatorRow(closeMarker) 形成成对的条件渲染：空数据时整个 section 不渲染。
+function sectionTitleRow(title, openMarker) {
   return new TableRow({
     children: [
       cell(
         [
+          ...(openMarker ? [rawPara(openMarker, { color: GRAY })] : []),
           new Paragraph({
             spacing: { before: 120, after: 60 },
             children: [
@@ -268,10 +272,15 @@ function sectionTitleRow(title) {
   });
 }
 
-function separatorRow() {
+function separatorRow(closeMarker) {
   return new TableRow({
     children: [
-      cell([emptyPara()], { width: T2_COL1 }),
+      cell(
+        closeMarker
+          ? [emptyPara(), rawPara(closeMarker, { color: GRAY })]
+          : [emptyPara()],
+        { width: T2_COL1 },
+      ),
       cell([emptyPara()], { width: T2_COL2 }),
       cell([emptyPara()], { width: T2_COL3 }),
     ],
@@ -285,7 +294,7 @@ function separatorRow() {
 
 function buildEducationRows() {
   return [
-    sectionTitleRow("教育背景"),
+    sectionTitleRow("教育背景", "{#hasEducation}"),
     new TableRow({
       children: [
         cell(
@@ -313,13 +322,13 @@ function buildEducationRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasEducation}"),
   ];
 }
 
 function buildSummaryRows() {
   return [
-    sectionTitleRow("个人优势总结"),
+    sectionTitleRow("个人优势总结", "{#hasSummary}"),
     new TableRow({
       children: [
         cell(
@@ -331,14 +340,14 @@ function buildSummaryRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasSummary}"),
   ];
 }
 
 // 工作经历：行 1 = 数据三列；行 2 = "工作描述："；行 3-5 = highlights 多段循环；行 6 = 关闭 {/work}
 function buildWorkRows() {
   return [
-    sectionTitleRow("工作经历"),
+    sectionTitleRow("工作经历", "{#hasWork}"),
     new TableRow({
       children: [
         cell(
@@ -368,13 +377,13 @@ function buildWorkRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasWork}"),
   ];
 }
 
 function buildProjectRows() {
   return [
-    sectionTitleRow("项目经验"),
+    sectionTitleRow("项目经验", "{#hasProjects}"),
     new TableRow({
       children: [
         cell(
@@ -405,13 +414,13 @@ function buildProjectRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasProjects}"),
   ];
 }
 
 function buildSkillRows() {
   return [
-    sectionTitleRow("专业技能"),
+    sectionTitleRow("专业技能", "{#hasSkills}"),
     new TableRow({
       children: [
         cell(
@@ -427,13 +436,13 @@ function buildSkillRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasSkills}"),
   ];
 }
 
 function buildLanguageRows() {
   return [
-    sectionTitleRow("语言能力"),
+    sectionTitleRow("语言能力", "{#hasLanguages}"),
     new TableRow({
       children: [
         cell(
@@ -444,13 +453,13 @@ function buildLanguageRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasLanguages}"),
   ];
 }
 
 function buildCertsRows() {
   return [
-    sectionTitleRow("证书荣誉"),
+    sectionTitleRow("证书荣誉", "{#hasCertsOrAwards}"),
     new TableRow({
       children: [
         cell(
@@ -466,13 +475,13 @@ function buildCertsRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasCertsOrAwards}"),
   ];
 }
 
 function buildVolunteerRows() {
   return [
-    sectionTitleRow("志愿者经历"),
+    sectionTitleRow("志愿者经历", "{#hasVolunteer}"),
     new TableRow({
       children: [
         cell(
@@ -501,7 +510,7 @@ function buildVolunteerRows() {
         ),
       ],
     }),
-    separatorRow(),
+    separatorRow("{/hasVolunteer}"),
   ];
 }
 
