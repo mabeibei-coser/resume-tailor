@@ -8,9 +8,7 @@ import {
   ChevronDown,
   Download,
   Loader2,
-  MessageSquare,
   Sparkles,
-  Zap,
 } from "lucide-react";
 
 import type {
@@ -96,9 +94,16 @@ export default function ReportPage() {
 
   return (
     <main className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--background)] pb-28">
+      {/* 编辑感背景：单层暖白渐晕 + 极淡颗粒（替换原双蓝紫渐变） */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.88_0.05_240/0.4),transparent)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_105%,oklch(0.94_0.015_60/0.3),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_35%_at_50%_-8%,oklch(0.93_0.025_245/0.35),transparent)]" />
+        <div
+          className="absolute inset-0 opacity-[0.03] mix-blend-multiply"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+          }}
+        />
       </div>
 
       {/* Header */}
@@ -142,27 +147,12 @@ export default function ReportPage() {
           </div>
         )}
 
-        {/* Hero + stats strip */}
+        {/* Hero — editorial：思源宋体大数字 + 时间戳 eyebrow + 单行 meta */}
         <Reveal mounted={mounted} delay={40}>
-          <div className="mb-10 border-b border-[var(--border)] pb-8">
-            <p className="mb-3 text-xs font-medium tracking-[0.2em] uppercase text-[var(--blue-500)]">
-              分析完成
-            </p>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--navy-950)] sm:text-3xl">
-              已找到{" "}
-              <span className="text-[var(--blue-600)]">{report.suggestions.length} 处</span>
-              {" "}可优化内容
-            </h1>
-            <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-              AI 对照 JD 逐条检查，以下是具体问题和改法
-            </p>
-
-            {/* Stats chips */}
-            <div className="mt-5 flex flex-wrap gap-3">
-              <StatChip icon={<Zap className="size-3" />} count={report.suggestions.length} label="项问题已修复" />
-              <StatChip icon={<MessageSquare className="size-3" />} count={report.interview.length} label="道面试题备好了" />
-            </div>
-          </div>
+          <HeroSection
+            count={report.suggestions.length}
+            interviewCount={report.interview.length}
+          />
         </Reveal>
 
         {/* Content sections */}
@@ -297,67 +287,110 @@ function Reveal({
   );
 }
 
-function StatChip({
-  icon,
+// ─────────────────────────────────────────────────
+// Hero（editorial 风格）
+// ─────────────────────────────────────────────────
+
+function useCountUp(target: number, duration = 1100) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!target) { setValue(0); return; }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      setValue(Math.round(target * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
+
+function todayDateString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function HeroSection({
   count,
-  label,
-  badge,
-  warning,
+  interviewCount,
 }: {
-  icon: React.ReactNode;
   count: number;
-  label: string;
-  badge?: string;
-  warning?: boolean;
+  interviewCount: number;
 }) {
+  const animated = useCountUp(count, 1100);
+  const [today] = useState(todayDateString);
+
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur ${
-        warning
-          ? "border-amber-200 bg-amber-50/80 text-amber-900"
-          : "border-[var(--blue-100)] bg-white/80 text-[var(--navy-800)]"
-      }`}
-    >
-      <span className={warning ? "text-amber-600" : "text-[var(--blue-500)]"}>{icon}</span>
-      <span className={`font-mono tabular-nums ${warning ? "text-amber-700" : "text-[var(--blue-600)]"}`}>
-        {count}
-      </span>
-      {label}
-      {badge && (
-        <span className="ml-0.5 rounded-full bg-amber-100 px-1.5 font-mono text-[10px] text-amber-700">
-          {badge}
+    <div className="mb-12 border-b border-[var(--report-border)] pb-10 sm:mb-16 sm:pb-12">
+      {/* Eyebrow：横线 + 状态 + 日期，编辑感 */}
+      <div className="mb-8 flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+        <span aria-hidden className="h-px w-6 bg-[var(--report-border)]" />
+        <span>分析完成</span>
+        <span aria-hidden className="text-[var(--report-divider)]">·</span>
+        <span className="tabular-nums">{today}</span>
+      </div>
+
+      {/* Hero：思源宋体超大数字 + 基线对齐的小标题 */}
+      <h1 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 sm:gap-x-4">
+        <span
+          className="font-heading text-[96px] font-black leading-none tracking-tight tabular-nums text-[var(--navy-950)] sm:text-[140px]"
+          aria-label={`已找到 ${count} 处可优化内容`}
+        >
+          {animated}
         </span>
-      )}
-    </span>
+        <span className="font-heading text-xl font-bold leading-tight text-[var(--navy-800)] sm:text-2xl">
+          处可优化内容
+        </span>
+      </h1>
+
+      {/* Meta 单行：替换原 stats chips */}
+      <p className="mt-6 text-sm leading-relaxed text-[var(--muted-foreground)]">
+        AI 对照 JD 逐条检查
+        <span aria-hidden className="mx-2.5 text-[var(--report-divider)]">·</span>
+        共 <span className="font-semibold tabular-nums text-[var(--navy-800)]">{interviewCount}</span> 道面试题已备好
+      </p>
+    </div>
   );
 }
 
 function SectionHeader({
   num,
   title,
-  caption,
   count,
 }: {
   num: string;
   title: string;
-  caption: string;
   count?: number;
 }) {
   return (
-    <div className="mb-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="flex items-baseline gap-3">
-          <span className="font-mono text-xs tabular-nums text-[var(--blue-500)]">{num}</span>
-          <h2 className="text-xl font-semibold tracking-tight text-[var(--navy-900)] sm:text-2xl">{title}</h2>
-          <span className="hidden font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted-foreground)] sm:inline">
-            {caption}
+    <div className="mb-6 sm:mb-8">
+      <div className="mb-3 flex items-end justify-between gap-4">
+        <div className="flex min-w-0 items-end gap-3 sm:gap-4">
+          {/* 章节编号：思源宋体大号 + ghost 色（不抢标题，但视觉锚点强） */}
+          <span
+            aria-hidden
+            className="font-heading text-[56px] font-black leading-[0.85] tabular-nums text-[var(--navy-900)]/15 sm:text-[72px]"
+          >
+            {num}
           </span>
+          <h2 className="pb-1 font-heading text-xl font-bold tracking-tight text-[var(--navy-900)] sm:pb-2 sm:text-2xl">
+            {title}
+          </h2>
         </div>
         {typeof count === "number" && (
-          <span className="font-mono text-xs tabular-nums text-[var(--blue-500)]">{count} 项</span>
+          <span className="shrink-0 pb-2 font-mono text-xs tabular-nums text-[var(--muted-foreground)]">
+            {count} 项
+          </span>
         )}
       </div>
-      <div className="mt-2.5 h-px bg-gradient-to-r from-[var(--blue-200)] via-[var(--blue-100)] to-transparent" />
+      <div className="h-px bg-[var(--report-divider)]" />
     </div>
   );
 }
@@ -377,7 +410,7 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 function SuggestionsBlock({ suggestions }: { suggestions: TailorSuggestion[] }) {
   return (
     <section>
-      <SectionHeader num="01" title="简历问题项" caption="Issues" count={suggestions.length} />
+      <SectionHeader num="01" title="简历问题项" count={suggestions.length} />
       {suggestions.length === 0 ? (
         <EmptyHint>该模块暂无数据</EmptyHint>
       ) : (
@@ -424,7 +457,7 @@ function SuggestionCard({ suggestion: s, index: i }: { suggestion: TailorSuggest
 function ChangesBlock({ changes }: { changes: DiffChange[] }) {
   return (
     <section>
-      <SectionHeader num="02" title="改写明细" caption="Diff" count={changes.length} />
+      <SectionHeader num="02" title="改写明细" count={changes.length} />
       {changes.length === 0 ? (
         <EmptyHint>暂无改写建议</EmptyHint>
       ) : (
@@ -558,7 +591,7 @@ function ChangeRow({ change }: { change: DiffChange }) {
 function InterviewBlock({ questions }: { questions: TailorInterviewQuestion[] }) {
   return (
     <section>
-      <SectionHeader num="02" title="该岗位高频面试问答" caption="Interview" count={questions.length} />
+      <SectionHeader num="02" title="该岗位高频面试问答" count={questions.length} />
       {questions.length === 0 ? (
         <EmptyHint>该模块暂无数据</EmptyHint>
       ) : (
