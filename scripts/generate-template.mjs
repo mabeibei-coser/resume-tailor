@@ -119,6 +119,8 @@ function cell(children, opts = {}) {
 function buildHeaderTable() {
   return new Table({
     width: { size: T1_COL1 + T1_COL2 + T1_COL3, type: WidthType.DXA },
+    // tblGrid — 必填，否则 WPS / 部分 Word 渲染器会把列拍扁成 100 DXA
+    columnWidths: [T1_COL1, T1_COL2, T1_COL3],
     borders: {
       ...NO_BORDERS,
       insideHorizontal: { style: BorderStyle.NONE, size: 0 },
@@ -522,6 +524,8 @@ const contentRows = [
 
 const contentTable = new Table({
   width: { size: T2_TOTAL, type: WidthType.DXA },
+  // tblGrid — 必填，否则 WPS / 部分 Word 渲染器会把列拍扁成 100 DXA
+  columnWidths: [T2_COL1, T2_COL2, T2_COL3],
   borders: {
     ...NO_BORDERS,
     insideHorizontal: { style: BorderStyle.NONE, size: 0 },
