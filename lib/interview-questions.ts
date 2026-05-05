@@ -56,29 +56,22 @@ export const Q2_FALLBACK_BANK: BankQuestion[] = [
   },
 ];
 
-/** 模块级游标：进程存活期间顺序滚动，重启后从头来 */
-let _cursor = 0;
-
 /**
- * 顺序取下一道题（非随机）。
- * 每次调用游标向后推一位；exclude 不为空时自动跳过已用题，游标仍正确推进。
+ * 取题：纯位置查询（无状态）。
+ * - 不带 exclude → 返回 bank[0]（Q1，preference 暖场题）
+ * - 带 exclude（含 q1.id）→ 返回 bank 里第一个不在 exclude 列表中的题（Q2）
+ *
+ * 老版本用模块级 _cursor 跨调用滚动，但题库只有 2 题且都要按顺序展示给同一用户：
+ * 若游标因为 prefetch / 健康检查 / 其它请求被推进过，下一个用户拿到的 Q1 就会
+ * 是 bank[1]（即新顺序里的 Q2，"对于这个岗位的信息..."），看起来"顺序又跳回去了"。
+ * 该游标的"轮询变化"只在 bank 多于 2 题时才合理；现在只有 2 题且强顺序，移除。
  */
 export function pickNextQuestion(exclude?: string[]): BankQuestion {
   const bank = INTERVIEW_QUESTION_BANK;
-  const n = bank.length;
-
-  for (let i = 0; i < n; i++) {
-    const q = bank[(_cursor + i) % n];
-    if (!exclude?.includes(q.id)) {
-      _cursor = (_cursor + i + 1) % n;
-      return q;
-    }
+  for (const q of bank) {
+    if (!exclude?.includes(q.id)) return q;
   }
-
-  // 全部被排除（正常不会走到这里）：返回当前游标并推进
-  const fallback = bank[_cursor];
-  _cursor = (_cursor + 1) % n;
-  return fallback;
+  return bank[0];
 }
 
 /** Q2 fallback 池独立游标，与 Q1 题库游标互不干扰 */
@@ -105,7 +98,3 @@ export function pickQ2Fallback(exclude?: string[]): BankQuestion {
   return fallback;
 }
 
-/** @deprecated 使用 pickNextQuestion 代替 */
-export function pickRandomQuestion(exclude?: string[]): BankQuestion {
-  return pickNextQuestion(exclude);
-}
