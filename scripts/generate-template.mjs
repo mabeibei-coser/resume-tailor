@@ -62,13 +62,20 @@ const NO_BORDERS = {
   right: { style: BorderStyle.NONE, size: 0 },
 };
 
-const T1_COL1 = 2837;
-const T1_COL2 = 4465;
-const T1_COL3 = 2683;
+// 页边距 + 内容区宽度（A4 = 11906 DXA；左右对称 1080 = 1.91cm，专业感）
+// 表格列宽按原模板比例（2837:4465:2683 / 2602:4123:3231）等比缩到 CONTENT_W
+// 关键：列宽合计必须 = CONTENT_W，否则表格溢出右边距、视觉偏右
+const PAGE_W = 11906;
+const PAGE_MARGIN_X = 1080;
+const CONTENT_W = PAGE_W - 2 * PAGE_MARGIN_X; // 9746
 
-const T2_COL1 = 2602;
-const T2_COL2 = 4123;
-const T2_COL3 = 3231;
+const T1_COL1 = Math.round((CONTENT_W * 2837) / 9985);
+const T1_COL2 = Math.round((CONTENT_W * 4465) / 9985);
+const T1_COL3 = CONTENT_W - T1_COL1 - T1_COL2;
+
+const T2_COL1 = Math.round((CONTENT_W * 2602) / 9956);
+const T2_COL2 = Math.round((CONTENT_W * 4123) / 9956);
+const T2_COL3 = CONTENT_W - T2_COL1 - T2_COL2;
 const T2_TOTAL = T2_COL1 + T2_COL2 + T2_COL3;
 
 // ——————————————————————————
@@ -560,8 +567,14 @@ const doc = new Document({
     {
       properties: {
         page: {
-          size: { width: 11906, height: 16838 },
-          margin: { top: 1440, bottom: 1440, left: 1800, right: 866 },
+          size: { width: PAGE_W, height: 16838 },
+          // 左右对称 1080 DXA（1.91cm）— 替换原模板继承的 1800/866 不对称，让内容居中
+          margin: {
+            top: 1440,
+            bottom: 1440,
+            left: PAGE_MARGIN_X,
+            right: PAGE_MARGIN_X,
+          },
         },
       },
       children: [
