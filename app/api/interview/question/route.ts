@@ -57,13 +57,13 @@ export async function POST(req: NextRequest) {
     let isFromBank = false;
 
     if (!previousTurns || previousTurns.length === 0) {
-      // Q1: 从题库随机抽
+      // Q1: 题库第一题（preference 暖场）
       const picked = pickNextQuestion();
       questionText = picked.text;
       questionId = picked.id;
       isFromBank = true;
     } else if (previousTurns.length === 1) {
-      // Q2: 直接从题库取第二题
+      // Q2: 题库下一题（exclude Q1，拿到 JD 补充题）
       const picked = pickNextQuestion(excludeIds);
       questionText = picked.text;
       questionId = picked.id;
