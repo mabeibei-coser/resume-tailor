@@ -65,15 +65,20 @@ const NO_BORDERS: ITableCellBorders = {
   right: { style: BorderStyle.NONE, size: 0 },
 };
 
-// Table 1 列宽（DXA）
-const T1_COL1 = 2837;
-const T1_COL2 = 4465;
-const T1_COL3 = 2683;
+// 页边距 + 内容区宽度（与 scripts/generate-template.mjs 对齐）
+// A4 = 11906 DXA；左右对称 1080 = 1.91cm 让内容居中（旧值 1800/866 是用户原模板继承的不对称）
+const PAGE_W = 11906;
+const PAGE_MARGIN_X = 1080;
+const CONTENT_W = PAGE_W - 2 * PAGE_MARGIN_X; // 9746
 
-// Table 2 列宽（DXA）
-const T2_COL1 = 2602;
-const T2_COL2 = 4123;
-const T2_COL3 = 3231;
+// 表格列宽：按原模板比例等比缩到 CONTENT_W，确保不溢出右边距
+const T1_COL1 = Math.round((CONTENT_W * 2837) / 9985);
+const T1_COL2 = Math.round((CONTENT_W * 4465) / 9985);
+const T1_COL3 = CONTENT_W - T1_COL1 - T1_COL2;
+
+const T2_COL1 = Math.round((CONTENT_W * 2602) / 9956);
+const T2_COL2 = Math.round((CONTENT_W * 4123) / 9956);
+const T2_COL3 = CONTENT_W - T2_COL1 - T2_COL2;
 const T2_TOTAL = T2_COL1 + T2_COL2 + T2_COL3;
 
 // ——————————————————————————
@@ -618,12 +623,12 @@ export async function buildResumeDocx(resume: ResumeJSON): Promise<Buffer> {
       {
         properties: {
           page: {
-            size: { width: 11906, height: 16838 },
+            size: { width: PAGE_W, height: 16838 },
             margin: {
               top: 1440,
               bottom: 1440,
-              left: 1800,
-              right: 866,
+              left: PAGE_MARGIN_X,
+              right: PAGE_MARGIN_X,
             },
           },
         },
