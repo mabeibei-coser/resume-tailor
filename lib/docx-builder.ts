@@ -52,6 +52,9 @@ function indexedHighlights(items: unknown): Array<{ displayIndex: number; text: 
     .map((text, i) => ({ displayIndex: i + 1, text }));
 }
 
+// 注：indexedHighlights / joinKeywords / safeArr 都已经容错处理"非数组"输入，
+// 所以即使 applyDiffChanges 把数组字段污染成字符串，也不会抛 TypeError。
+
 function joinKeywords(items: unknown): string {
   if (!Array.isArray(items)) return "";
   const list = items.filter(nonEmpty);
@@ -72,8 +75,18 @@ function fmtDateRange(start?: string, end?: string): { startDate: string; endDat
   };
 }
 
+// LLM 偶尔会返回 string 当 array（如 "Office, Excel" 而非 [{...}]），
+// 或 diff-applier 把字符串 replace 进数组字段。下游 .map(...) 会爆 TypeError →
+// 触发 fallback 到 legacy → legacy 的 for-of 把字符串当 iterable 拆字符 → 渲染出
+// 一串 "undefined"。统一用 safeArr 守住所有数组字段。
+function safeArr<T = unknown>(x: unknown): T[] {
+  return Array.isArray(x) ? (x as T[]) : [];
+}
+
 function buildViewModel(resume: ResumeJSON): Record<string, unknown> {
-  const education = (resume.education ?? []).map((e) => ({
+  const education = safeArr<NonNullable<ResumeJSON["education"]>[number]>(
+    resume.education,
+  ).map((e) => ({
     ...fmtDateRange(e.startDate, e.endDate),
     institution: e.institution ?? "",
     area: e.area ?? "",
@@ -81,45 +94,59 @@ function buildViewModel(resume: ResumeJSON): Record<string, unknown> {
     score: e.score ?? "",
   }));
 
-  const work = (resume.work ?? []).map((w) => ({
-    ...fmtDateRange(w.startDate, w.endDate),
-    name: w.name ?? "",
-    position: w.position ?? "",
-    summary: w.summary ?? "",
-    highlights: indexedHighlights(w.highlights),
-  }));
+  const work = safeArr<NonNullable<ResumeJSON["work"]>[number]>(resume.work).map(
+    (w) => ({
+      ...fmtDateRange(w.startDate, w.endDate),
+      name: w.name ?? "",
+      position: w.position ?? "",
+      summary: w.summary ?? "",
+      highlights: indexedHighlights(w.highlights),
+    }),
+  );
 
-  const projects = (resume.projects ?? []).map((p) => ({
+  const projects = safeArr<NonNullable<ResumeJSON["projects"]>[number]>(
+    resume.projects,
+  ).map((p) => ({
     ...fmtDateRange(p.startDate, p.endDate),
     name: p.name ?? "",
     description: p.description ?? "",
-    roles: Array.isArray(p.roles) ? p.roles.filter(nonEmpty) : [],
+    roles: safeArr<string>(p.roles).filter(nonEmpty),
     highlights: indexedHighlights(p.highlights),
     keywords_str: joinKeywords(p.keywords),
   }));
 
-  const skills = (resume.skills ?? []).map((s) => ({
-    name: s.name ?? "",
-    level_str: nonEmpty(s.level) ? `（${s.level}）` : "",
-    keywords_str: joinKeywords(s.keywords),
+  const skills = safeArr<NonNullable<ResumeJSON["skills"]>[number]>(
+    resume.skills,
+  ).map((s) => ({
+    name: s?.name ?? "",
+    level_str: nonEmpty(s?.level) ? `（${s.level}）` : "",
+    keywords_str: joinKeywords(s?.keywords),
   }));
 
-  const languages = (resume.languages ?? []).map((l) => ({
-    language: l.language ?? "",
-    fluency: l.fluency ?? "",
+  const languages = safeArr<NonNullable<ResumeJSON["languages"]>[number]>(
+    resume.languages,
+  ).map((l) => ({
+    language: l?.language ?? "",
+    fluency: l?.fluency ?? "",
   }));
 
-  const certifications = (resume.certifications ?? []).map((c) => ({
-    name: c.name ?? "",
-    tail: joinTail([c.issuer, c.date]),
+  const certifications = safeArr<NonNullable<ResumeJSON["certifications"]>[number]>(
+    resume.certifications,
+  ).map((c) => ({
+    name: c?.name ?? "",
+    tail: joinTail([c?.issuer, c?.date]),
   }));
 
-  const awards = (resume.awards ?? []).map((a) => ({
-    title: a.title ?? "",
-    tail: joinTail([a.awarder, a.date]),
+  const awards = safeArr<NonNullable<ResumeJSON["awards"]>[number]>(
+    resume.awards,
+  ).map((a) => ({
+    title: a?.title ?? "",
+    tail: joinTail([a?.awarder, a?.date]),
   }));
 
-  const volunteer = (resume.volunteer ?? []).map((v) => ({
+  const volunteer = safeArr<NonNullable<ResumeJSON["volunteer"]>[number]>(
+    resume.volunteer,
+  ).map((v) => ({
     ...fmtDateRange(v.startDate, v.endDate),
     organization: v.organization ?? "",
     position: v.position ?? "",
