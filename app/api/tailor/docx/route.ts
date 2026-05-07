@@ -2,7 +2,9 @@
  * /api/tailor/docx
  * ———————————————
  * GET  ?token=xxx → 主路径：prefetch 模式，await 共享 Job Promise，回 docx attachment
- *                  这是真实 HTTP URL 链路，跨进程安全（解决安卓微信/QQ blob 拦截 + iOS 文件类型识别）
+ *                  真实 HTTP URL 链路（解决安卓微信/QQ blob 拦截 + iOS 文件类型识别）
+ *                  注：job 存在 process-local Map，仅 pm2 fork 单实例下安全，
+ *                  上 cluster/serverless 须换共享 store。
  * POST { resume, changes } → 兜底路径：直接同步生成（兼容旧客户端 / fallback）
  *
  * 中文文件名走 RFC 5987 的 filename*=UTF-8'' 形式避免乱码。
@@ -11,7 +13,7 @@
 import { applyDiffChanges } from "@/lib/diff-applier";
 import { buildResumeDocx } from "@/lib/docx-builder";
 import { getJob } from "@/lib/docx-job-store";
-import { ResumeJSONSchema, type DiffChange } from "@/lib/types";
+import { DiffChangeArraySchema, ResumeJSONSchema } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,16 +85,17 @@ export async function POST(request: Request): Promise<Response> {
   if (!parsed.success) {
     return jsonError(400, `resume 不是合法 ResumeJSON：${parsed.error.message}`);
   }
-  if (!Array.isArray(body.changes)) {
-    return jsonError(400, "changes 必须是 DiffChange[]");
+  const changesParsed = DiffChangeArraySchema.safeParse(body.changes);
+  if (!changesParsed.success) {
+    return jsonError(400, `changes 不是合法 DiffChange[]：${changesParsed.error.message}`);
   }
 
   let nextResume;
   try {
-    nextResume = applyDiffChanges(parsed.data, body.changes as DiffChange[]);
+    nextResume = applyDiffChanges(parsed.data, changesParsed.data);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return jsonError(500, `应用 diff 失败：${msg}`);
+    return jsonError(400, `应用 diff 失败：${msg}`);
   }
 
   let buffer: Buffer;
