@@ -99,6 +99,27 @@ export interface DiffChange {
   flagReason?: string;
 }
 
+// 入口校验用：拒绝原型污染 path（__proto__ / constructor / prototype）
+// + 限定 action 枚举 + 加字段长度上限（防大 payload 打爆内存）
+const FORBIDDEN_PATH_KEYS = /(?:^|[.\[])(?:__proto__|constructor|prototype)(?:[.\[]|$)/;
+export const DiffChangeSchema = z.object({
+  path: z
+    .string()
+    .min(1)
+    .max(200)
+    .refine((p) => !FORBIDDEN_PATH_KEYS.test(p), {
+      message: "path 不能包含 __proto__ / constructor / prototype",
+    }),
+  action: z.enum(["replace", "append", "delete"]),
+  oldText: z.string().max(20_000).optional(),
+  newText: z.string().max(20_000),
+  reason: z.string().max(1000),
+  flagged: z.boolean().optional(),
+  flagReason: z.string().max(1000).optional(),
+});
+
+export const DiffChangeArraySchema = z.array(DiffChangeSchema).max(200);
+
 // ——————————————————————————
 // JSON Resume 标准 schema（参考 jsonresume.org）
 // Wave 1 共享依赖：Step 12 Parser / Step 14 Validator / Step 16 Applier / Step 17 DOCX 共用

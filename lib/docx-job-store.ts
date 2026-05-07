@@ -3,11 +3,18 @@
  * ———————————————
  * - Promise 是共享的，多次 GET 同一 token 都 await 同一个渲染过程，不重复跑
  * - startJob 幂等（同 token 二次调用返回原 job）
- * - GC 不淘汰 status=pending 的 job（让 Promise 自然 settle，避免泄漏）
+ * - PENDING_TIMEOUT_MS 兜底：渲染卡住超时则标记 error，避免内存泄漏
+ *
+ * 注意：本 store 是 process-local（pm2 fork 单实例下 OK；上 cluster 须换 Redis）。
  */
 
 import type { Buffer } from "node:buffer";
-import type { ReportPayload } from "./docx-token-store";
+import type { DiffChange, ResumeJSON } from "./types";
+
+export interface ReportPayload {
+  resume: ResumeJSON;
+  changes: DiffChange[];
+}
 
 export type JobStatus = "pending" | "ready" | "error";
 
@@ -21,11 +28,31 @@ export interface DocxJob {
 
 const TTL_MS = 30 * 60 * 1000;
 const GC_INTERVAL_MS = 60 * 1000;
+const PENDING_TIMEOUT_MS = 60 * 1000; // 渲染最多 60s，超过算挂死
 const GC_KEY = "__docxJobStoreGC__";
 
 const jobs = new Map<string, DocxJob>();
 
 export type RenderFn = (payload: ReportPayload) => Promise<Buffer>;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`docx render 超时（${ms}ms）`));
+    }, ms);
+    timer.unref?.();
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
 
 export function startJob(
   token: string,
@@ -37,7 +64,7 @@ export function startJob(
 
   const job: DocxJob = {
     status: "pending",
-    promise: renderFn(payload),
+    promise: withTimeout(renderFn(payload), PENDING_TIMEOUT_MS),
     expiresAt: Date.now() + TTL_MS,
   };
   job.promise.then(
@@ -57,7 +84,6 @@ export function startJob(
 export function getJob(token: string): DocxJob | null {
   const job = jobs.get(token);
   if (!job) return null;
-  // pending 即便"过期"也要让它跑完，避免泄漏
   if (job.status !== "pending" && job.expiresAt < Date.now()) {
     jobs.delete(token);
     return null;
@@ -70,7 +96,11 @@ if (!g[GC_KEY]) {
   const timer = setInterval(() => {
     const now = Date.now();
     for (const [k, v] of jobs) {
-      if (v.status !== "pending" && v.expiresAt < now) jobs.delete(k);
+      // pending 超过两倍超时也清理（理论上 withTimeout 已经把它推向 error，
+      // 这里是防御性兜底）
+      const tooLong = v.status === "pending" && v.expiresAt < now - PENDING_TIMEOUT_MS;
+      const settledExpired = v.status !== "pending" && v.expiresAt < now;
+      if (tooLong || settledExpired) jobs.delete(k);
     }
   }, GC_INTERVAL_MS);
   timer.unref?.();
