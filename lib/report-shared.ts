@@ -153,8 +153,9 @@ export async function callIflytekJson<T>(
 }
 
 /**
- * 章节 AI 调用的统一入口（讯飞星辰单路）。
- * validator 返回非 null 字符串时抛错，由路由层兜底 mock。
+ * 章节 AI 调用的统一入口（讯飞星辰单路，失败自动重试一次）。
+ * 讯飞偶发返回残缺 JSON / 字段数量不足时，重试通常可恢复。
+ * 两次都失败才抛错，由路由层兜底 mock。
  */
 export async function callWithFallback<T>(
   opts: CallOptions & {
@@ -163,12 +164,23 @@ export async function callWithFallback<T>(
   }
 ): Promise<T> {
   const { validator, ...callOpts } = opts;
-  const data = await callIflytekJson<T>(callOpts);
-  if (validator) {
-    const issue = validator(data);
-    if (issue) throw new Error(`内容校验失败: ${issue}`);
+
+  const attempt = async (): Promise<T> => {
+    const data = await callIflytekJson<T>(callOpts);
+    if (validator) {
+      const issue = validator(data);
+      if (issue) throw new Error(`内容校验失败: ${issue}`);
+    }
+    return data;
+  };
+
+  try {
+    return await attempt();
+  } catch (firstErr) {
+    const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+    console.warn("[retry] 讯飞第一次失败，重试:", msg);
+    return await attempt();
   }
-  return data;
 }
 
 export const FORBIDDEN_FRAUD_NOTE = `严禁建议任何伪造、虚构、购买性质的手段（如购买实习证明、代写简历、虚假经历、代考）；只建议合法的能力积累路径（真实实习申请、开源贡献、开源课程认证、学术竞赛、Kaggle、个人项目等）。`;
