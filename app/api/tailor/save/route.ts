@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 import { getDb } from "@/lib/db";
 import type { TailorFormData, TailorReport } from "@/lib/types";
 
@@ -57,8 +59,28 @@ export async function POST(req: NextRequest) {
       ip,
       durationMs ?? null
     );
+    const reportId = result.lastInsertRowid as number;
 
-    return NextResponse.json({ ok: true, id: result.lastInsertRowid, uuid });
+    // 把上传的原始简历从 temp 移到永久存储，记录绝对路径供后台下载
+    if (formData.resumeRef && formData.resumeFilename) {
+      const srcPath = path.join(
+        process.cwd(), "data", "temp", formData.resumeRef, formData.resumeFilename
+      );
+      if (fs.existsSync(srcPath)) {
+        const destDir = path.join(process.cwd(), "data", "resumes", String(reportId));
+        fs.mkdirSync(destDir, { recursive: true });
+        const destPath = path.join(destDir, formData.resumeFilename);
+        fs.renameSync(srcPath, destPath);
+        db.prepare("UPDATE reports SET resume_storage_path = ? WHERE id = ?").run(
+          destPath, reportId
+        );
+        try {
+          fs.rmdirSync(path.join(process.cwd(), "data", "temp", formData.resumeRef));
+        } catch { /* temp 目录非空则忽略 */ }
+      }
+    }
+
+    return NextResponse.json({ ok: true, id: reportId, uuid });
   } catch (e) {
     console.error("[tailor/save] error:", e);
     return NextResponse.json({ ok: false, error: "internal error" }, { status: 500 });
