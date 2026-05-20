@@ -190,7 +190,10 @@ export async function POST(request: Request) {
       maxTokens: 4500,
       validator: validateRewriteResult,
     });
-    llmChanges = llmResult.changes;
+    // normalize: iFlytek 对 delete 动作可能返回 null newText，统一转成 "" 供下游使用
+    llmChanges = llmResult.changes.map((c) =>
+      c.action === "delete" && c.newText == null ? { ...c, newText: "" } : c
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn("[rewrite] 双 LLM 均失败，返回兜底 mock（保留真实 resume）:", msg);

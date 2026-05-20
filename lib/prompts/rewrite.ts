@@ -171,10 +171,11 @@ function checkChange(c: DiffChange, idx: number): string | null {
   if (typeof c.action !== "string" || !VALID_ACTIONS.has(c.action))
     return `changes[${idx}].action 非法："${c.action}"（必须是 replace / append / delete）`;
 
-  // newText：必须是字符串。delete 允许空串（表示删除原文），但其他 action 必须非空且非占位符
-  if (typeof c.newText !== "string")
+  // newText：delete 允许 null/undefined（iFlytek 对删除动作返回 null，等价于空串）
+  // 其他 action 必须是非空非占位符字符串
+  if (c.action !== "delete" && typeof c.newText !== "string")
     return `changes[${idx}].newText 不是字符串`;
-  if (c.action !== "delete" && isPlaceholder(c.newText))
+  if (c.action !== "delete" && isPlaceholder(c.newText as string))
     return `changes[${idx}].newText 是占位符或空串："${c.newText}"`;
 
   // reason
