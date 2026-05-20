@@ -76,6 +76,12 @@ export default function LoadingPage() {
           },
         });
         sessionStorage.setItem("tailor:report", JSON.stringify(report));
+        // 后台存档（fire-and-forget，存档失败不影响用户跳转）
+        fetch("/api/tailor/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ formData: fd, report }),
+        }).catch(() => {/* 存档失败静默处理 */});
         setDone(true);
         // 让用户看到 100% / 完成态再跳
         setTimeout(() => router.push("/report"), 700);
