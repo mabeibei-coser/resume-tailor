@@ -12,6 +12,7 @@ import {
 
 import { generateTailor, type SectionProgress } from "@/lib/report-client";
 import type { TailorFormData } from "@/lib/types";
+import { API_BASE } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
 
 const PHASES = [
@@ -77,7 +78,8 @@ export default function LoadingPage() {
         });
         sessionStorage.setItem("tailor:report", JSON.stringify(report));
         // 后台存档（fire-and-forget，存档失败不影响用户跳转）
-        fetch("/api/tailor/save", {
+        // ⚠️ 必须带 API_BASE 前缀：生产部署在 /a100 子路径下，裸 /api 会丢前缀
+        fetch(`${API_BASE}/api/tailor/save`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ formData: fd, report }),
