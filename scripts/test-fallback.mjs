@@ -2,7 +2,7 @@
 /**
  * Step 24 · 端到端 Fallback 测试
  *
- * 目标：验证当 MiniMax + 讯飞双路都失败时（用 invalid key 模拟），
+ * 目标：验证当讯飞 API 失败时（用 invalid key 模拟），
  *       /api/tailor/analyze 与 /api/tailor/rewrite 都能：
  *       1. 返回 HTTP 200（不让前端拿到 5xx）
  *       2. response.data.fallback === true（前端 / Step 25 错误 UI 据此降级提示）
@@ -224,7 +224,6 @@ async function main() {
     const original = await readFile(ENV_PATH, "utf8");
     // 把真实 KEY 替换成 invalid（保留其余配置如 BASE_URL / MODEL）
     const polluted = original
-      .replace(/^MINIMAX_API_KEY=.*$/m, "MINIMAX_API_KEY=invalid_for_fallback_test")
       .replace(/^IFLYTEK_API_KEY=.*$/m, "IFLYTEK_API_KEY=invalid_for_fallback_test:invalid");
     await writeFile(ENV_PATH, polluted, "utf8");
     log("已写入 invalid key 到 .env.local");

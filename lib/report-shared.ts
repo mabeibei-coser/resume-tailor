@@ -1,4 +1,3 @@
-import client, { MINIMAX_MODEL } from "@/lib/minimax";
 import iflytek, { IFLYTEK_MODEL } from "@/lib/iflytek";
 import type { JobFormData, QuizAnswer } from "@/lib/types";
 import { inferIndustry } from "@/lib/industry-resolver";
@@ -118,50 +117,8 @@ const JSON_ONLY_PREFIX = `【输出约束 · 必须严格遵守】
 `;
 
 // 单章节硬超时（毫秒）：50s
-// M2.7 正常章节 14-45s 完成；超过 50s 基本是卡住或吐错 JSON 要重试
-// 50s × 2 次 = 100s 上限，控制用户最坏等待在 ~100s 内
-// 超时章节自动 fallback mock，保证报告一定能出
 const SECTION_HARD_TIMEOUT_MS = 50_000;
 
-export async function callMiniMaxJson<T>(
-  opts: CallOptions & { timeoutMs?: number }
-): Promise<T> {
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    opts.timeoutMs ?? SECTION_HARD_TIMEOUT_MS
-  );
-  try {
-    const response = await client.chat.completions.create(
-      {
-        model: MINIMAX_MODEL,
-        messages: [
-          { role: "system", content: JSON_ONLY_PREFIX + opts.systemPrompt },
-          { role: "user", content: opts.userPrompt },
-        ],
-        temperature: opts.temperature ?? 0.6,
-        max_tokens: opts.maxTokens ?? 3000,
-        // 原生 JSON 模式：约束解码，强制输出合法 JSON
-        // 消除"用户要求我..."/"让我分析..."等前言污染
-        response_format: { type: "json_object" },
-      },
-      { signal: controller.signal }
-    );
-
-    const rawContent = response.choices[0]?.message?.content || "";
-    const cleaned = stripReasoning(rawContent);
-    const jsonStr = extractJson(cleaned);
-    return tryFixAndParse(jsonStr) as T;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// 讯飞 fallback：镜像 callMiniMaxJson 的结构和后处理管线
-// 与 MiniMax 的区别：
-// 1. 使用 iflytek client（可能为 null，未配 key 时抛错）
-// 2. model 用 IFLYTEK_MODEL（默认 astron-code-latest）
-// 3. 其他（JSON_ONLY_PREFIX / response_format / stripReasoning / extractJson / tryFixAndParse）完全一致
 export async function callIflytekJson<T>(
   opts: CallOptions & { timeoutMs?: number }
 ): Promise<T> {
@@ -196,55 +153,22 @@ export async function callIflytekJson<T>(
 }
 
 /**
- * 章节 AI 调用的统一入口：MiniMax 主 → iFlytek fallback。
- *
- * **失败**包含三种情况，任一出现都会触发切换讯飞 key 重试：
- * 1. API 调用错误（429/529/超时/网络）
- * 2. JSON 解析失败（模型吐残缺 JSON）
- * 3. `validator` 返回非 null 字符串（内容校验不通过——字段缺失/占位符/空串）
- *
- * 两家都失败才抛**原始 MiniMax 错误**（第一手信息便于排查）。
- * 未配 IFLYTEK_API_KEY 时自动退化为单路 MiniMax，调用方无需改 env。
+ * 章节 AI 调用的统一入口（讯飞星辰单路）。
+ * validator 返回非 null 字符串时抛错，由路由层兜底 mock。
  */
 export async function callWithFallback<T>(
   opts: CallOptions & {
     timeoutMs?: number;
-    /** 返回 null = 通过；返回字符串 = 错误原因，触发 fallback */
     validator?: (data: T) => string | null;
   }
 ): Promise<T> {
   const { validator, ...callOpts } = opts;
-  const runOnce = async (
-    caller: "minimax" | "iflytek",
-    sectionName: string
-  ): Promise<T> => {
-    const data =
-      caller === "minimax"
-        ? await callMiniMaxJson<T>(callOpts)
-        : await callIflytekJson<T>(callOpts);
-    if (validator) {
-      const issue = validator(data);
-      if (issue) throw new Error(`[${sectionName}] 内容校验失败: ${issue}`);
-    }
-    return data;
-  };
-
-  try {
-    return await runOnce("minimax", "MiniMax");
-  } catch (miniMaxErr) {
-    if (!iflytek) throw miniMaxErr;
-    const miniMsg =
-      miniMaxErr instanceof Error ? miniMaxErr.message : String(miniMaxErr);
-    console.warn("[fallback] MiniMax 失败/校验不通过，切换讯飞重试:", miniMsg);
-    try {
-      return await runOnce("iflytek", "iFlytek");
-    } catch (iflytekErr) {
-      const ifMsg =
-        iflytekErr instanceof Error ? iflytekErr.message : String(iflytekErr);
-      console.warn("[fallback] 讯飞也失败:", ifMsg);
-      throw miniMaxErr; // 抛原始 MiniMax 错误，看到首因
-    }
+  const data = await callIflytekJson<T>(callOpts);
+  if (validator) {
+    const issue = validator(data);
+    if (issue) throw new Error(`内容校验失败: ${issue}`);
   }
+  return data;
 }
 
 export const FORBIDDEN_FRAUD_NOTE = `严禁建议任何伪造、虚构、购买性质的手段（如购买实习证明、代写简历、虚假经历、代考）；只建议合法的能力积累路径（真实实习申请、开源贡献、开源课程认证、学术竞赛、Kaggle、个人项目等）。`;
