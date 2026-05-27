@@ -5,7 +5,7 @@
 // applyDiffChanges 是 LLM 改写意见落地成 docx 的最后一道关。LLM 给的 path 下标
 // 经常数错，delete 会让数组下标整体错位，跨段搬运会把 A 公司的经历搬到 B 公司。
 // 这一层只做「安全的、可证明不破坏结构」的改动，定位不到 / 不安全的一律保留原文：
-//   ① 带「待核实」标记的改写 → 跳过（保守导出：编造 / 未核实内容不进 docx）
+//   ① 带「待核实」标记的改写 → 进 docx（用户在 Word 里再核对，但报告页可见标记）
 //   ② delete → 一律跳过（删除是结构破坏 + 经历丢失的主要来源）
 //   ③ replace 数组元素 → 靠 oldText 内容定位，不信任 LLM 给的下标
 //   ④ 任何 change 的 newText 若原本属于另一段经历 → 跳过（拦截跨段搬运）
@@ -80,9 +80,6 @@ export function setValueByPath(
 // ——————————————————————————
 // 内容归一化 + 跨段搬运检测
 // ——————————————————————————
-
-// 带此标记的改写视为「未核实 / 可能虚构」，保守导出下不进 docx（与 analyze.ts 对应）
-const REVIEW_MARK = /[（(]\s*待核实\s*[)）]/;
 
 // 归一化：NFKC + 去空白 + 小写。LLM 常产出 "ppt" → " ppt" 之类轻微变体，
 // 精确 === 会漏判，归一化后再比。
@@ -262,13 +259,7 @@ export function applyDiffChanges(
   for (const change of changes) {
     if (change.flagged === true) continue; // validator 已拦下
 
-    // 保守导出 ①：带「待核实」的改写不进 docx —— 编造 / 未核实内容只在屏幕报告展示
-    if (typeof change.newText === "string" && REVIEW_MARK.test(change.newText)) {
-      console.info(`[diff-applier] 跳过含「待核实」的改写（保守导出）${change.path}`);
-      continue;
-    }
-
-    // 保守导出 ②：不执行 delete —— 删除是结构破坏 + 经历丢失的主要来源，
+    // 保守导出 ①：不执行 delete —— 删除是结构破坏 + 经历丢失的主要来源，
     // 也是「把某段经历搬走」的一半。删除建议仅在报告页展示，不动求职者真实经历。
     if (change.action === "delete") {
       console.info(`[diff-applier] 跳过 delete（保守导出）${change.path}`);

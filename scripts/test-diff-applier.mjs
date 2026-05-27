@@ -283,16 +283,9 @@ const cases = [
     },
   },
   {
-    name: "case 6：截图 bug 复现 —— 跨段搬运 + delete + 待核实，工作经历必须保持原结构",
+    name: "case 6：截图 bug 复现 —— 跨段搬运 + delete 全部拦下，工作经历保持原结构",
     fixture: SCREENSHOT_FIXTURE,
     changes: [
-      {
-        path: "work[0].highlights[0]",
-        action: "replace",
-        oldText: "每日与客户邮件交流，了解客户需求，处理售后问题，保持与客户建立长期的合作关系",
-        newText: "每日处理大量客户数据与诉求，精准记录并分类归档，确保信息零误差，为后续服务提供数据支持（待核实）",
-        reason: "对齐 JD",
-      },
       { path: "work[0].highlights", action: "append", newText: "开发沟通新客户", reason: "前置到主力岗位" },
       { path: "work[0].highlights", action: "append", newText: "编写公司宣传 ppt", reason: "补充能力点" },
       {
@@ -313,12 +306,9 @@ const cases = [
       { path: "work[1].highlights[1]", action: "delete", oldText: "开发沟通新客户", newText: "", reason: "已前置删除" },
     ],
     verify: (input, output) => {
-      // 工作经历必须和原始 100% 一致：无串行、无丢条、无待核实
+      // 工作经历必须和原始 100% 一致：无串行、无丢条
       if (!deepEqual(output.work, SCREENSHOT_FIXTURE.work)) {
         return { pass: false, msg: `work 段被破坏：${JSON.stringify(output.work)}` };
-      }
-      if (JSON.stringify(output).includes("待核实")) {
-        return { pass: false, msg: "「待核实」泄漏进了结果" };
       }
       return { pass: true };
     },
@@ -342,7 +332,7 @@ const cases = [
     },
   },
   {
-    name: "case 8：含「待核实」的改写被跳过，保留原文",
+    name: "case 8：含「待核实」的改写允许进 docx（用户在 Word 里再核对）",
     changes: [
       {
         path: "work[0].highlights[0]",
@@ -353,10 +343,11 @@ const cases = [
       },
     ],
     verify: (input, output) => {
-      if (output.work[0].highlights[0] !== "参与 X") {
+      const expected = "主导 X 项目并将转化率提升 30%（待核实）";
+      if (output.work[0].highlights[0] !== expected) {
         return {
           pass: false,
-          msg: `应保留原文「参与 X」，实际「${output.work[0].highlights[0]}」`,
+          msg: `应替换为「${expected}」，实际「${output.work[0].highlights[0]}」`,
         };
       }
       return { pass: true };

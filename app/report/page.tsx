@@ -444,7 +444,7 @@ function SuggestionCard({ suggestion: s, index: i }: { suggestion: TailorSuggest
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-[var(--navy-900)] sm:text-base">
-            {s.title}
+            {stripReviewMark(s.title)}
           </h3>
           <span className="shrink-0 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">
             <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -454,7 +454,7 @@ function SuggestionCard({ suggestion: s, index: i }: { suggestion: TailorSuggest
           </span>
         </div>
         <p className="mt-1.5 text-sm leading-[1.65] text-[var(--report-ink-muted)]">
-          {s.problem}
+          {stripReviewMark(s.problem)}
         </p>
       </div>
     </div>
@@ -495,6 +495,17 @@ const ACTION_LABEL: Record<string, string> = {
   append: "新增",
   delete: "删除",
 };
+
+// 报告页面渲染前剥掉「（待核实）」/「(待核实)」标记 + 连带前后空白。
+// 该标记是给 docx 用户在 Word 里看的『这是 LLM 推测，请自行核对』提示，
+// 不应该在前端 marketing 性质的"已优化"卡片里出现，否则用户看着像没修完。
+// 仅作用于渲染层；report.changes 原文不动，docx 仍保留标记。
+const REVIEW_MARK_RE = /\s*[（(]\s*待核实\s*[)）]\s*/g;
+
+function stripReviewMark(text: string | undefined | null): string {
+  if (!text) return "";
+  return text.replace(REVIEW_MARK_RE, "").trim();
+}
 
 function formatChangeText(text: string | undefined | null): string | null {
   if (!text?.trim()) return null;
@@ -639,7 +650,7 @@ function InterviewItem({ question: q, index: i }: { question: TailorInterviewQue
           Q{i + 1}
         </span>
         <span className="flex-1 text-sm font-medium leading-[1.6] text-[var(--navy-900)] sm:text-[15px]">
-          {q.question}
+          {stripReviewMark(q.question)}
         </span>
         <ChevronDown
           className={`mt-0.5 size-4 shrink-0 text-[var(--muted-foreground)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
@@ -656,12 +667,12 @@ function InterviewItem({ question: q, index: i }: { question: TailorInterviewQue
           {q.why && (
             <p className="mb-3.5 text-[12px] leading-[1.7] text-[var(--report-ink-muted)]">
               <span className="mr-2 font-mono text-[9px] uppercase tracking-[0.2em] opacity-70">为什么问</span>
-              {q.why}
+              {stripReviewMark(q.why)}
             </p>
           )}
           <div className="rounded-xl border border-[var(--blue-100)] bg-[var(--blue-50)]/60 p-3.5">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--blue-600)]">参考回答</p>
-            <p className="whitespace-pre-wrap text-[13px] leading-[1.7] text-[var(--navy-800)]">{q.sampleAnswer}</p>
+            <p className="whitespace-pre-wrap text-[13px] leading-[1.7] text-[var(--navy-800)]">{stripReviewMark(q.sampleAnswer)}</p>
           </div>
           {q.keypoints && q.keypoints.length > 0 && (
             <div className="mt-3.5">
@@ -674,7 +685,7 @@ function InterviewItem({ question: q, index: i }: { question: TailorInterviewQue
                     key={ki}
                     className="rounded-full border border-[var(--blue-100)] bg-white px-2.5 py-0.5 text-[12px] text-[var(--navy-800)]"
                   >
-                    {k}
+                    {stripReviewMark(k)}
                   </span>
                 ))}
               </div>

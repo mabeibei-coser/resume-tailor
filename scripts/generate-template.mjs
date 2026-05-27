@@ -50,10 +50,12 @@ const BLUE = "4874CB";
 const GRAY = "595959";
 const DARK = "3B3838";
 
-const SZ_NAME = 44;
-const SZ_LABEL = 24;
-const SZ_SECTION = 28;
-const SZ_BODY = 22;
+// 字号单位：half-points（docx 库约定）；50% = 实际 pt
+// 标准方案：正文 10pt / 联系方式 10pt / 章节标题 12pt / 姓名 18pt
+const SZ_NAME = 36;     // 18pt
+const SZ_LABEL = 20;    // 10pt
+const SZ_SECTION = 24;  // 12pt
+const SZ_BODY = 20;     // 10pt
 
 const NO_BORDERS = {
   top: { style: BorderStyle.NONE, size: 0 },

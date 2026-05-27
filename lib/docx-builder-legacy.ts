@@ -53,10 +53,10 @@ const BLUE = "4874CB";
 const GRAY = "595959";
 const DARK = "3B3838";
 
-const SZ_NAME = 44;      // 22pt
-const SZ_LABEL = 24;     // 12pt
-const SZ_SECTION = 28;   // 14pt
-const SZ_BODY = 22;      // 11pt
+const SZ_NAME = 36;      // 18pt
+const SZ_LABEL = 20;     // 10pt
+const SZ_SECTION = 24;   // 12pt
+const SZ_BODY = 20;      // 10pt
 
 const NO_BORDERS: ITableCellBorders = {
   top: { style: BorderStyle.NONE, size: 0 },
