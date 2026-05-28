@@ -153,9 +153,10 @@ export async function callIflytekJson<T>(
 }
 
 /**
- * 章节 AI 调用的统一入口（讯飞星辰单路，失败自动重试一次）。
- * 讯飞偶发返回残缺 JSON / 字段数量不足时，重试通常可恢复。
- * 两次都失败才抛错，由路由层兜底 mock。
+ * 章节 AI 调用的统一入口（讯飞星辰单路，失败自动重试最多 3 次）。
+ * 讯飞 astron-code-latest 是代码生成专用模型，写中文长 JSON 偶发抽风（字段类型错 /
+ * 数量不足 / 残缺 JSON），重试 1-2 次通常能拿到合格输出。
+ * 4 次（首次 + 3 次重试）都失败才抛错，由路由层兜底 mock。
  */
 export async function callWithFallback<T>(
   opts: CallOptions & {
@@ -174,13 +175,20 @@ export async function callWithFallback<T>(
     return data;
   };
 
-  try {
-    return await attempt();
-  } catch (firstErr) {
-    const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
-    console.warn("[retry] 讯飞第一次失败，重试:", msg);
-    return await attempt();
+  const MAX_RETRIES = 3;
+  let lastErr: unknown;
+  for (let i = 0; i <= MAX_RETRIES; i++) {
+    try {
+      return await attempt();
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (i < MAX_RETRIES) {
+        console.warn(`[retry ${i + 1}/${MAX_RETRIES}] 讯飞失败，重试:`, msg);
+      }
+    }
   }
+  throw lastErr;
 }
 
 export const FORBIDDEN_FRAUD_NOTE = `严禁建议任何伪造、虚构、购买性质的手段（如购买实习证明、代写简历、虚假经历、代考）；只建议合法的能力积累路径（真实实习申请、开源贡献、开源课程认证、学术竞赛、Kaggle、个人项目等）。`;

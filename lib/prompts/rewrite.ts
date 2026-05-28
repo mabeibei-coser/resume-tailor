@@ -165,61 +165,52 @@ function isPlaceholder(s: string): boolean {
 
 const VALID_ACTIONS = new Set(["replace", "append", "delete"]);
 
-function checkChange(c: DiffChange, idx: number): string | null {
-  if (!c || typeof c !== "object") return `changes[${idx}] 不是对象`;
-
-  // path
-  if (typeof c.path !== "string" || !c.path.trim())
-    return `changes[${idx}].path 为空或不是字符串`;
-
-  // action
-  if (typeof c.action !== "string" || !VALID_ACTIONS.has(c.action))
-    return `changes[${idx}].action 非法："${c.action}"（必须是 replace / append / delete）`;
-
-  // newText：delete 允许 null/undefined（iFlytek 对删除动作返回 null，等价于空串）
-  // 其他 action 必须是非空非占位符字符串
-  if (c.action !== "delete" && typeof c.newText !== "string")
-    return `changes[${idx}].newText 不是字符串`;
-  if (c.action !== "delete" && isPlaceholder(c.newText as string))
-    return `changes[${idx}].newText 是占位符或空串："${c.newText}"`;
-
-  // reason
-  if (typeof c.reason !== "string" || isPlaceholder(c.reason))
-    return `changes[${idx}].reason 是占位符或空串："${c.reason}"`;
-
-  // oldText：replace/delete 时应该有；append 时省略也允许
-  if (c.action === "replace" || c.action === "delete") {
-    if (typeof c.oldText !== "string" || !c.oldText.trim())
-      return `changes[${idx}].oldText 为空（${c.action} 操作必须提供 oldText）`;
-  }
-
-  return null;
-}
-
 interface RewriteResult {
   changes: DiffChange[];
 }
 
+// 单条 change 是否完全 OK（用于过滤而不是 fail-fast）
+function isChangeOk(c: DiffChange): boolean {
+  if (!c || typeof c !== "object") return false;
+  if (typeof c.path !== "string" || !c.path.trim()) return false;
+  if (typeof c.action !== "string" || !VALID_ACTIONS.has(c.action)) return false;
+  if (typeof c.reason !== "string" || isPlaceholder(c.reason)) return false;
+  if (c.action === "delete") {
+    // delete 允许 newText null/空；oldText 必须有
+    if (typeof c.oldText !== "string" || !c.oldText.trim()) return false;
+    return true;
+  }
+  // replace / append: newText 必须是非空非占位符字符串
+  if (typeof c.newText !== "string") return false;
+  if (isPlaceholder(c.newText)) return false;
+  if (c.action === "replace") {
+    if (typeof c.oldText !== "string" || !c.oldText.trim()) return false;
+  }
+  return true;
+}
+
 /**
  * 校验 LLM 返回的 rewrite 结果。
- * 通过 → null
- * 失败 → 错误描述（callWithFallback 据此切讯飞重试）
+ *
+ * 策略：宽容过滤而非严格 fail-fast。
+ * - 讯飞偶发抽风产出某条 change.newText 非字符串/空串时，先把这条剔掉再判断整体
+ * - 整体不达底线（< 3 条合格）才返回错误 → 重试
+ * - 这样能让"8 条合格 + 2 条 newText 类型错"的输出落地，而不是触发兜底 mock
  *
  * 注意：路径白名单 / 字数倍率 / 虚构技能 由 lib/diff-validator.ts 在路由层调用，
  *      这里只做"格式 / 字段非空 / 占位符" 三类基础校验。
+ *
+ * 通过 → null
+ * 失败 → 错误描述（callWithFallback 据此重试）
  */
 export function validateRewriteResult(data: RewriteResult): string | null {
   if (!data || typeof data !== "object") return "data 不是对象";
-
   if (!Array.isArray(data.changes)) return "changes 不是数组";
 
-  if (data.changes.length < 3)
-    return `changes 长度 ${data.changes.length}（要求 ≥ 3）`;
+  data.changes = data.changes.filter(isChangeOk);
 
-  for (let i = 0; i < data.changes.length; i++) {
-    const issue = checkChange(data.changes[i], i);
-    if (issue) return issue;
-  }
+  if (data.changes.length < 3)
+    return `过滤后 changes 长度 ${data.changes.length}（讯飞抽风过滤后合规条目 < 3）`;
 
   return null;
 }

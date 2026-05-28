@@ -171,66 +171,54 @@ function isPlaceholder(s: string): boolean {
   return PLACEHOLDER_PATTERNS.some((re) => re.test(trimmed));
 }
 
-function checkSuggestion(s: TailorSuggestion, idx: number): string | null {
-  if (!s || typeof s !== "object") return `suggestion[${idx}] 不是对象`;
+// 单条 suggestion / interview 是否完全 OK（用于过滤而不是 fail-fast）
+function isSuggestionOk(s: TailorSuggestion): boolean {
+  if (!s || typeof s !== "object") return false;
   for (const field of ["title", "problem", "action", "example"] as const) {
     const v = s[field];
-    if (typeof v !== "string") return `suggestion[${idx}].${field} 不是字符串`;
-    if (isPlaceholder(v))
-      return `suggestion[${idx}].${field} 是占位符或空串："${v}"`;
+    if (typeof v !== "string" || isPlaceholder(v)) return false;
   }
-  return null;
+  return true;
 }
 
-function checkInterview(q: TailorInterviewQuestion, idx: number): string | null {
-  if (!q || typeof q !== "object") return `interview[${idx}] 不是对象`;
+function isInterviewOk(q: TailorInterviewQuestion): boolean {
+  if (!q || typeof q !== "object") return false;
   for (const field of ["question", "why", "sampleAnswer"] as const) {
     const v = q[field];
-    if (typeof v !== "string") return `interview[${idx}].${field} 不是字符串`;
-    if (isPlaceholder(v))
-      return `interview[${idx}].${field} 是占位符或空串："${v}"`;
+    if (typeof v !== "string" || isPlaceholder(v)) return false;
   }
-  if (!Array.isArray(q.keypoints))
-    return `interview[${idx}].keypoints 不是数组`;
-  if (q.keypoints.length < 2)
-    return `interview[${idx}].keypoints 少于 2 条（实际 ${q.keypoints.length}）`;
-  for (let i = 0; i < q.keypoints.length; i++) {
-    const k = q.keypoints[i];
-    if (typeof k !== "string")
-      return `interview[${idx}].keypoints[${i}] 不是字符串`;
-    if (isPlaceholder(k))
-      return `interview[${idx}].keypoints[${i}] 是占位符或空串："${k}"`;
+  if (!Array.isArray(q.keypoints) || q.keypoints.length < 2) return false;
+  for (const k of q.keypoints) {
+    if (typeof k !== "string" || isPlaceholder(k)) return false;
   }
-  return null;
+  return true;
 }
 
 /**
  * 校验 LLM 返回的 TailorAnalyzeResult。
+ *
+ * 策略：宽容过滤而非严格 fail-fast。
+ * - 讯飞偶发抽风产出某条 bad suggestion 或 interview 时，先把这条剔掉再判断整体
+ * - 整体不达底线（suggestions < 1 或 interview < 3）才返回错误 → 重试
+ * - 这样能让"3 条合格 + 1 条 newText 类型错"的输出落地，而不是触发兜底 mock
+ *
  * 通过 → 返回 null。
- * 失败 → 返回错误描述（callWithFallback 会据此切讯飞重试）。
+ * 失败 → 返回错误描述（callWithFallback 会据此重试）。
  */
 export function validateAnalyzeResult(data: TailorAnalyzeResult): string | null {
   if (!data || typeof data !== "object") return "data 不是对象";
 
-  // suggestions: 1-5 条
-  if (!Array.isArray(data.suggestions))
-    return "suggestions 不是数组";
-  if (data.suggestions.length < 1 || data.suggestions.length > 5)
-    return `suggestions 长度 ${data.suggestions.length}（要求 1-5）`;
-  for (let i = 0; i < data.suggestions.length; i++) {
-    const issue = checkSuggestion(data.suggestions[i], i);
-    if (issue) return issue;
-  }
+  // suggestions: 过滤 + 至少 1 条合格（上限 5；超出截断）
+  if (!Array.isArray(data.suggestions)) return "suggestions 不是数组";
+  data.suggestions = data.suggestions.filter(isSuggestionOk).slice(0, 5);
+  if (data.suggestions.length < 1)
+    return "过滤后 suggestions 为空（讯飞输出全部不合格）";
 
-  // interview: 严格 5 条
-  if (!Array.isArray(data.interview))
-    return "interview 不是数组";
-  if (data.interview.length !== 5)
-    return `interview 长度 ${data.interview.length}（要求严格 = 5）`;
-  for (let i = 0; i < data.interview.length; i++) {
-    const issue = checkInterview(data.interview[i], i);
-    if (issue) return issue;
-  }
+  // interview: 过滤 + 至少 3 条合格（原"严格 = 5"放宽到 3-5；超出截断）
+  if (!Array.isArray(data.interview)) return "interview 不是数组";
+  data.interview = data.interview.filter(isInterviewOk).slice(0, 5);
+  if (data.interview.length < 3)
+    return `过滤后 interview 长度 ${data.interview.length}（要求 ≥ 3）`;
 
   return null;
 }
