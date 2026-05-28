@@ -12,8 +12,10 @@ export interface ValidateContext {
 
 // 字数倍率上限（plan v3.2）
 const LENGTH_MULTIPLIER = 1.8;
-// append 时 oldText 可能空，按 30 字符基线
-const APPEND_BASELINE = 30;
+// 短字段（标签、技能名、短 highlight）至少给 40 字基线
+// 否则 aggressive 模式补一句量化数据就立刻超 1.8x 被 FLAG
+// （如原文 "客户信息整理" 12 字 × 1.8 = 22 字，根本写不下"主导…维护 500+ 份…准确率 100%" 这种数据导向重写）
+const APPEND_BASELINE = 40;
 
 // 国内常见技术词典（MVP，假阳尽量少 — 只列高频且不易和普通词混淆的）
 const COMMON_TECH_SKILLS = [
@@ -53,15 +55,19 @@ export function validatePath(path: string): { ok: boolean; reason?: string } {
 // ——————————————————————————
 
 export function validateLength(change: DiffChange): { ok: boolean; reason?: string } {
+  // append: 用 APPEND_BASELINE
+  // replace/delete: 取 max(oldText.length, APPEND_BASELINE)
+  //   —— 长字段（>40 字）正常 1.8x 限制灌水
+  //   —— 短字段（<40 字标签 / 技能名 / 短 highlight）给 40 字基线，让 aggressive 模式补量化数据有空间
   const baseline =
     change.action === "append"
       ? APPEND_BASELINE
-      : (change.oldText?.length ?? APPEND_BASELINE);
+      : Math.max(change.oldText?.length ?? 0, APPEND_BASELINE);
   const limit = baseline * LENGTH_MULTIPLIER;
   if (change.newText.length > limit) {
     return {
       ok: false,
-      reason: `新内容字数过长（>${LENGTH_MULTIPLIER}x）`,
+      reason: `新内容字数过长（>${LENGTH_MULTIPLIER}x of ${baseline}字基线）`,
     };
   }
   return { ok: true };
