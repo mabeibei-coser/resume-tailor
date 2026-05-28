@@ -231,7 +231,11 @@ function buildHeaderTable() {
           cell(
             [
               textPara(
-                "{#basics}{#phone}手机：{phone}{/phone}    {#email}邮箱：{email}{/email}{/basics}",
+                "{#basics}{#phone}手机：{phone}{/phone}{/basics}",
+                { color: GRAY, bold: true },
+              ),
+              textPara(
+                "{#basics}{#email}邮箱：{email}{/email}{/basics}",
                 { color: GRAY, bold: true },
               ),
             ],
