@@ -61,39 +61,39 @@ export const ANALYZE_SYSTEM_PROMPT = `你是一位资深 HR 顾问、简历教�
 
 ## 优化程度规则（user prompt 末尾会明确告知本次是 moderate 还是 aggressive，必须严格按对应一套执行）
 
-### moderate（适中 · 推荐）
-**用户期望**：将简历内容根据岗位要求进行提炼、优化，重点突出与目标岗位匹配的【能力表现 / 业绩表现 / 项目经历】，整体优化风格为**稳妥型**，虚构及润色程度 < 10%。
+### moderate（稳妥润色风格 · 夸大成分 < 15%）
+**用户期望**：对岗位、经历、业绩进行适当的润色美化，重点突出与目标岗位匹配的【能力 / 业绩 / 项目】，润色偏保守风格。
 
 **执行规则**：
-- **保留原经历的框架与顺序**：不重排工作经历 / 项目经历的先后
+- **可重排经历顺序**：按 JD 相关度从高到低调整工作经历 / 项目顺序（在 action 里说明意图）
 - **聚焦三类匹配点**：能力（技能 / 方法论）、业绩（量化结果）、项目（与 JD 同领域的实战）
-- **调整措辞、补量化指标、对齐 JD 关键词**：在已有 highlights 里换更精准的动词、显式带出 JD 要求的硬技能名词
-- **不擅自重组结构 / 不改岗位标题 / 严格控制虚构**：example 中的数字、百分比、规模优先取自简历原文；少量必要的合理润色可出现，但任何原文没有的具体数字必须以「（待核实）」结尾
-- 语气保守、克制，像在做"措辞润色"而非"重写"
-- example 平均长度控制在 25-40 字，不要堆砌
+- **适当增加数据**：example 可补充合理范围内的量化指标（百分比、规模、人数、增长率等），**不要求出自简历原文**，但要符合候选人岗位 / 行业的合理体量（如普通运营岗写"覆盖 1 亿用户"明显失真）
+- **整体润色夸大成分 < 15%**：偏保守，不大改岗位标题、不把"实习生"提到"负责人"、不无中生有整段没干过的经历
+- **调整措辞、对齐 JD 关键词**：换更精准的动词、显式带出 JD 要求的硬技能名词
+- 语气保守、克制，像在做"润色美化"
+- example 平均长度控制在 25-40 字
 
-### aggressive（激进 · 仅参考）
-**用户期望**：将简历内容根据岗位要求进行提炼、优化，重点突出与目标岗位匹配的【能力表现 / 业绩表现 / 项目经历】，整体优化风格为**激进型** —— 措辞更强势、更敢重构呈现方式。
-**激进 ≠ 编造**：aggressive 与 moderate 同样不许虚构事实，二者区别只在「改写幅度 / 重构自由度」，不在「能编多少」。
+### aggressive（激进风格重构 · 夸大成分 < 30%）
+**用户期望**：基于简历内容做联想、重构简历结构、增强 JD 所要求的匹配点，以数据说话，润色风格偏激进。
 
 **执行规则**：
-- **可重组经历顺序**：在 action 中明确建议「把 X 经历前置 / 把 Y 经历后置」，按 JD 相关度从高到低重排
-- **可删减不相关经历**：在 action 中明确建议「弱化 / 删除与 JD 无关的 X 段」
-- **可改岗位标题让其更贴近目标岗**：不偏离实际职责范围（如「内容编辑」可改成「内容运营专员」，但不能把「实习生」改成「负责人」）
-- **example 只改"怎么说"，不改"做过什么"**：可大幅改写措辞、换更强的动词，但 example 描述的**动作与职责必须与简历原文是同一件事**。
-    - ✗ 反例："每日与客户邮件交流、处理售后问题" 写成 "处理大量客户数据、分类归档、确保零误差" —— 把"邮件沟通"偷换成"数据处理"，篡改了事实
-    - ✓ 正例：→ 写成 "高频邮件对接客户需求、闭环跟进售后问题" —— 同一件事，措辞更利落
-- **不发明数字**：example 里的数字只能来自简历原文；原文没有量化结果时用强动词体现价值，不凭空造百分比 / 规模。确需补量化时，在 action 里建议用户自己填真实数据
+- **可基于简历内容做联想**：从简历真实经历出发延伸，把模糊职责具体化、把"参与"重构为"负责"、把抽象贡献量化为可读数据；联想必须能追溯到简历里的某段真实经历
+- **可重组顺序 / 可改岗位标题 / 可建议删经历**：按 JD 相关度重排，岗位标题可向 JD 靠拢（如"内容编辑"→"内容运营"），明显与 JD 无关的经历可在 action 里建议弱化或删除
+- **以数据说话**：example 较多地使用百分比、规模、人数、增长率等可读数据；数据可基于简历内容合理推演，**不要求原文出处**，但要符合岗位 / 行业体量
+- **整体夸大成分 < 30%**：不可篡改经历的核心动作 / 职责（如把"邮件对接客户"偷换成"主导数据中台建设"这种另起一回事）、不可把"实习生"提到"负责人"、不可虚构整段没干过的工作
+    - ✗ 反例："每日与客户邮件交流、处理售后问题" 改成 "主导建设客户数据中台、对接 1000 万 + 用户" —— 偷换了动作 + 数据明显失真
+    - ✓ 正例："每日与客户邮件交流、处理售后问题" 改成 "高频邮件对接 200+ 客户需求、闭环跟进售后问题，平均响应时长压缩至 4 小时" —— 同一件事，措辞更利落 + 补合理数据
 - 语气主动、强势，example 更长更具体（40-60 字），多用结果导向动词（"主导 / 推动 / 落地 / 沉淀"）
 
 ## 红线（违反任意一条都视为本次任务失败）
 
 1. **建议必须基于简历提到的具体内容 + JD 的具体关键词**，禁止给万金油（"建议突出团队协作"这种放在任何简历都成立的话不合格）
-2. **moderate 模式下不要凭空虚构简历里没有的经历或数字**——如果简历里没出现的能力，只能在 action 里说"建议补一段 X 经历"，不能在 example 里直接编"主导了一个 1000 万用户的项目"
-3. **aggressive 模式同样不篡改经历事实、不发明原文没有的数字**：可大改措辞，但不得把一条经历的真实动作换成另一回事（万一确需推测数字，须标「（待核实）」）
-4. **suggestions 长度 1-5 条（按实际问题数量来，不要凑数）；interview 长度严格 = 5**
-5. **所有字符串字段必须是真实内容**，不能是 "..."、"<...>"、"字符串"、"待填" 之类的占位符
-6. **必须按 user prompt 末尾明示的 mode 执行对应规则**，不要在 moderate 输出中混入"重组经历顺序" / "改岗位标题"等 aggressive 动作
+2. **不可篡改经历的核心动作 / 职责**：可大改措辞、可补量化、可联想包装，但 example 描述的动作与简历原文必须是同一件事，不得把"邮件沟通"偷换成"数据中台建设"
+3. **不可虚构整段没干过的工作 / 学历 / 公司**：润色限于"已有经历的怎么说"，不能在 example 里凭空塞一段简历里没出现的工作经历
+4. **数据要符合岗位 / 行业体量**：moderate 夸大 < 15%、aggressive 夸大 < 30%；不可写"覆盖 1 亿用户"这种与候选人量级明显失真的数字
+5. **suggestions 长度 1-5 条（按实际问题数量来，不要凑数）；interview 长度严格 = 5**
+6. **所有字符串字段必须是真实内容**，不能是 "..."、"<...>"、"字符串"、"待填" 之类的占位符
+7. **必须按 user prompt 末尾明示的 mode 执行对应规则**，moderate 输出不应混入 aggressive 的大幅重构动作
 
 ## 风格
 
@@ -126,8 +126,8 @@ export const ANALYZE_USER_TEMPLATE_HEAD = `以下是本次需要分析的【目�
 export function buildAnalyzeUserPrompt(formData: TailorFormData): string {
   const modeLabel =
     formData.mode === "aggressive"
-      ? "激进 · 仅参考（激进型：措辞更强势、可重组经历顺序、可改岗位标题、可建议删弱经历；不篡改经历事实、不发明数字）"
-      : "适中 · 推荐（稳妥型优化，重点突出能力 / 业绩 / 项目匹配，虚构及润色程度 < 10%）";
+      ? "激进风格重构（可基于简历内容做联想、可重组顺序、可改岗位标题、可建议删经历，以数据说话；夸大成分 < 30%）"
+      : "稳妥润色风格（适当润色美化，可重排经历，适当增加数据；夸大成分 < 15%）";
 
   // 简历过长时截断，控制输入 token（与 career-report buildBaseContext 一致）
   const resumeSnippet =
@@ -136,8 +136,8 @@ export function buildAnalyzeUserPrompt(formData: TailorFormData): string {
       : formData.resumeText;
 
   const jdSnippet =
-    formData.jd.length > 1500
-      ? formData.jd.slice(0, 1500) + "\n...(已截断)"
+    formData.jd.length > 4500
+      ? formData.jd.slice(0, 4500) + "\n...(已截断)"
       : formData.jd;
 
   return [
@@ -146,7 +146,7 @@ export function buildAnalyzeUserPrompt(formData: TailorFormData): string {
     `\n【优化偏好】\n${modeLabel}`,
     `\n【JD 原文】\n${jdSnippet}`,
     `\n【简历原文】\n${resumeSnippet}`,
-    `\n本次优化程度：${formData.mode}（请严格按照 system 中「优化程度规则」对应一套规则执行；moderate 不得擅自重组经历或编数字，aggressive 可重组改写但不得篡改经历事实、不得发明数字）。`,
+    `\n本次优化程度：${formData.mode}（请严格按照 system 中「优化程度规则」对应一套规则执行；moderate 夸大成分 < 15%，aggressive 夸大成分 < 30%；两种模式都不得篡改经历核心事实、不得虚构整段没干过的工作）。`,
   ].join("\n");
 }
 
@@ -235,35 +235,3 @@ export function validateAnalyzeResult(data: TailorAnalyzeResult): string | null 
   return null;
 }
 
-/**
- * Step 11 mode-aware 轻量警告（不阻断流程）：
- * - moderate 模式：example 出现具体数字（百分比 / 倍数 / 万元 / 人 / 月）但未带「待核实」 → console.warn
- * - aggressive 模式：example 出现数字但未标「待核实」 → console.warn（提醒模型违规）
- *
- * 完整的 diff-validator（路径白名单 / 字数 ≤ 1.8x / 虚构检测）在 Step 14 实现，
- * 这里只是给开发期一个粗筛信号。
- */
-const NUMERIC_PATTERN = /\d+(?:\.\d+)?\s*(?:%|倍|万|千|亿|w|k|人|月|周|天|小时|秒)/i;
-const TBD_MARK = /[（(]\s*待核实\s*[)）]/;
-
-export function warnModeViolations(
-  data: TailorAnalyzeResult,
-  mode: "moderate" | "aggressive",
-): void {
-  if (!data?.suggestions) return;
-  for (let i = 0; i < data.suggestions.length; i++) {
-    const example = data.suggestions[i]?.example ?? "";
-    const hasNumber = NUMERIC_PATTERN.test(example);
-    const hasTBDMark = TBD_MARK.test(example);
-    if (mode === "moderate" && hasNumber && !hasTBDMark) {
-      console.warn(
-        `[analyze validator][moderate] suggestion[${i}].example 含具体数字但 moderate 模式不应推测：「${example}」`,
-      );
-    }
-    if (mode === "aggressive" && hasNumber && !hasTBDMark) {
-      console.warn(
-        `[analyze validator][aggressive] suggestion[${i}].example 含数字但未标「（待核实）」：「${example}」`,
-      );
-    }
-  }
-}

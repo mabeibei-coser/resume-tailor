@@ -16,7 +16,6 @@ import {
   ANALYZE_SYSTEM_PROMPT,
   buildAnalyzeUserPrompt,
   validateAnalyzeResult,
-  warnModeViolations,
 } from "@/lib/prompts/analyze";
 import type { TailorAnalyzeResult, TailorFormData } from "@/lib/types";
 
@@ -118,7 +117,6 @@ export async function POST(request: Request) {
       maxTokens: 4800,
       validator: validateAnalyzeResult,
     });
-    warnModeViolations(data, formData.mode);
     return NextResponse.json({ data });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

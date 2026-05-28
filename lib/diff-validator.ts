@@ -68,53 +68,6 @@ export function validateLength(change: DiffChange): { ok: boolean; reason?: stri
 }
 
 // ——————————————————————————
-// 子函数：虚构数字检测
-// ——————————————————————————
-
-// 量化形式正则（覆盖中英文常见量化）
-// 注：用顺序匹配 + 去重，避免 30% 同时被多个模式抽到
-const QUANT_PATTERNS: RegExp[] = [
-  /\d+(?:\.\d+)?%/g,             // 30% / 30.5%
-  /\d+(?:\.\d+)?亿/g,             // 1.5亿
-  /\d+(?:\.\d+)?万元?/g,          // 100万 / 100万元
-  /\d+(?:\.\d+)?[xX×]/g,          // 3x / 3X / 3×
-  /\d+(?:\.\d+)?\+/g,             // 50+
-  /\d+(?:\.\d+)?万用户/g,         // 50万用户（注意：会和 50万 重叠，但下面去重处理）
-];
-
-function extractQuants(text: string): string[] {
-  const found = new Set<string>();
-  for (const re of QUANT_PATTERNS) {
-    const matches = text.match(re);
-    if (matches) {
-      for (const m of matches) found.add(m);
-    }
-  }
-  return Array.from(found);
-}
-
-export function validateNumbers(
-  change: DiffChange,
-  ctx: ValidateContext
-): { ok: boolean; reason?: string } {
-  const quants = extractQuants(change.newText);
-  if (quants.length === 0) return { ok: true };
-
-  // 原始上下文 = 简历 + JD + oldText（如果有）
-  const haystack = `${ctx.resumeText}\n${ctx.jd}\n${change.oldText ?? ""}`;
-
-  for (const q of quants) {
-    if (!haystack.includes(q)) {
-      return {
-        ok: false,
-        reason: `虚构数字 ${q}：在原文/JD 中未出现`,
-      };
-    }
-  }
-  return { ok: true };
-}
-
-// ——————————————————————————
 // 子函数：虚构技能检测
 // ——————————————————————————
 
@@ -200,12 +153,13 @@ export function validateDiffChanges(
   ctx: ValidateContext
 ): DiffChange[] {
   return changes.map((change) => {
-    // 顺序检查：路径 → 字数 → 数字 → 技能
+    // 顺序检查：路径 → 字数 → 技能
     // 命中第一个就停（一个 change 一个 flagReason 就够，不堆叠）
+    // 注：原 validateNumbers（虚构数字检测）已移除——新策略允许 AI 基于简历内容合理推演数据
+    // （moderate 夸大 < 15%、aggressive 夸大 < 30%），数据合理性由 prompt 总量上限兜底，不再卡数字出处
     const checks: Array<(c: DiffChange) => { ok: boolean; reason?: string }> = [
       (c) => validatePath(c.path),
       (c) => validateLength(c),
-      (c) => validateNumbers(c, ctx),
       (c) => validateSkills(c, ctx),
     ];
 

@@ -281,7 +281,7 @@
   - **讯飞 fallback**：`IFLYTEK_API_KEY` + 可选 `IFLYTEK_BASE_URL` / `IFLYTEK_MODEL`
   - **火山 TTS / ASR**（共享 APP_KEY / ACCESS_KEY）：`VOLC_TTS_APP_KEY` + `VOLC_TTS_ACCESS_KEY` + 可选 `VOLC_TTS_SPEAKER` / `VOLC_ASR_RESOURCE_ID`
 
-- **.env.local 同步**：career-report 已有 `D:\career-report\.env.local`，按 plan 指令把 9 个相关变量行 `grep` 后追加到 `D:\workspace\01_项目-Coding\resume-tailor\.env.local`（**未打印 secret 值**，仅核对行数 = 9）。检查无 `$` 字符（避开 dotenv 截断坑），`.gitignore` 已忽略 `.env.local`
+- **.env.local 同步**：career-report 已有 `D:\career-report\.env.local`，按 plan 指令把 9 个相关变量行 `grep` 后追加到 `D:\workspace\01_项目-Coding\A100-简历优化-resume-tailor\.env.local`（**未打印 secret 值**，仅核对行数 = 9）。检查无 `$` 字符（避开 dotenv 截断坑），`.gitignore` 已忽略 `.env.local`
 
 - **next build**：通过（Compile 2.8s / TypeScript 2.8s / 11 路由，新增 `ƒ /api/interview/question` + `ƒ /api/interview/transcribe`）
 
@@ -475,7 +475,7 @@
 
 ## Step 2 备注
 
-- **route.ts 整体复制**：从 `D:\career-report\app\api\resume\parse\route.ts` → `D:\workspace\01_项目-Coding\resume-tailor\app\api\resume\parse\route.ts`，167 行，`diff -bw` 内容 100% 一致（仅行尾 CRLF→LF），保留 E2E_MOCK_MODE 兜底
+- **route.ts 整体复制**：从 `D:\career-report\app\api\resume\parse\route.ts` → `D:\workspace\01_项目-Coding\A100-简历优化-resume-tailor\app\api\resume\parse\route.ts`，167 行，`diff -bw` 内容 100% 一致（仅行尾 CRLF→LF），保留 E2E_MOCK_MODE 兜底
 - **类型依赖**：route.ts 完全自含，仅依赖 `next/server` + `fs` / `path` / `crypto` 内置模块，**不需要复制 lib/types.ts**
 - **目录**：创建 `data/temp/` + `.gitkeep`，`.gitignore` 改为 `data/temp/*` + `!data/temp/.gitkeep`
 - **next build**：通过（2.2s 编译，TS 1925ms，新路由 `ƒ /api/resume/parse` 标为 dynamic）
