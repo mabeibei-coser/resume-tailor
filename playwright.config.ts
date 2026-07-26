@@ -2,12 +2,13 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: ["**/*.test.mts"],
   timeout: 120_000,
   retries: 0,
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3001",
+    baseURL: "http://localhost:3001/a100",
     trace: "off",
     video: "off",
   },

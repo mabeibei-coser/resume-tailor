@@ -1,7 +1,7 @@
 /**
  * /api/tailor/analyze 的 prompt 资产
  * ———————————————
- * - 静态 SYSTEM + 静态 USER 模板头放前面（命中 MiniMax 自动 prefix cache）
+ * - 静态 SYSTEM + 静态 USER 模板头放前面（便于供应商做 prefix cache）
  * - 动态 jobTitle / jd / resumeText / mode 拼到 user message 末尾
  * - validator 校验 schema：suggestions 长度 1-5 + interview 长度 5 + 字段非空 + 占位符泄漏检测
  *
@@ -198,7 +198,7 @@ function isInterviewOk(q: TailorInterviewQuestion): boolean {
  * 校验 LLM 返回的 TailorAnalyzeResult。
  *
  * 策略：宽容过滤而非严格 fail-fast。
- * - 讯飞偶发抽风产出某条 bad suggestion 或 interview 时，先把这条剔掉再判断整体
+ * - 模型偶发产出某条 bad suggestion 或 interview 时，先把这条剔掉再判断整体
  * - 整体不达底线（suggestions < 1 或 interview < 3）才返回错误 → 重试
  * - 这样能让"3 条合格 + 1 条 newText 类型错"的输出落地，而不是触发兜底 mock
  *
@@ -212,7 +212,7 @@ export function validateAnalyzeResult(data: TailorAnalyzeResult): string | null 
   if (!Array.isArray(data.suggestions)) return "suggestions 不是数组";
   data.suggestions = data.suggestions.filter(isSuggestionOk).slice(0, 5);
   if (data.suggestions.length < 1)
-    return "过滤后 suggestions 为空（讯飞输出全部不合格）";
+    return "过滤后 suggestions 为空（模型输出全部不合格）";
 
   // interview: 过滤 + 至少 3 条合格（原"严格 = 5"放宽到 3-5；超出截断）
   if (!Array.isArray(data.interview)) return "interview 不是数组";

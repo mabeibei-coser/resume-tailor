@@ -79,7 +79,7 @@ export interface TailorInterviewQuestion {
 export interface TailorAnalyzeResult {
   suggestions: TailorSuggestion[];
   interview: TailorInterviewQuestion[];
-  /** Step 24：双 LLM 兜底标记。true 表示走的是静态 mock，前端可据此提示「降级模式」 */
+  /** Step 24：LLM 兜底标记。true 表示走的是静态 mock，前端可据此提示「降级模式」 */
   fallback?: boolean;
 }
 
@@ -265,7 +265,7 @@ export const RESUME_PATH_FORBIDDEN_PATTERNS = [
 export interface TailorRewriteResult {
   resume: ResumeJSON;
   changes: DiffChange[];
-  /** Step 24：双 LLM 兜底标记。true 表示 changes 是静态 mock，前端可据此提示「降级模式」 */
+  /** Step 24：LLM 兜底标记。true 表示 changes 是静态 mock，前端可据此提示「降级模式」 */
   fallback?: boolean;
 }
 

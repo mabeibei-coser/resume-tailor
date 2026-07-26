@@ -1,4 +1,4 @@
-import iflytek, { IFLYTEK_MODEL } from "@/lib/iflytek";
+import { callBananaRouterText } from "@/lib/bananarouter";
 import type { JobFormData, QuizAnswer } from "@/lib/types";
 import { inferIndustry } from "@/lib/industry-resolver";
 
@@ -119,43 +119,24 @@ const JSON_ONLY_PREFIX = `【输出约束 · 必须严格遵守】
 // 单章节硬超时（毫秒）：50s
 const SECTION_HARD_TIMEOUT_MS = 50_000;
 
-export async function callIflytekJson<T>(
+export async function callBananaRouterJson<T>(
   opts: CallOptions & { timeoutMs?: number }
 ): Promise<T> {
-  if (!iflytek) throw new Error("讯飞 fallback 未配置");
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    opts.timeoutMs ?? SECTION_HARD_TIMEOUT_MS
-  );
-  try {
-    const response = await iflytek.chat.completions.create(
-      {
-        model: IFLYTEK_MODEL,
-        messages: [
-          { role: "system", content: JSON_ONLY_PREFIX + opts.systemPrompt },
-          { role: "user", content: opts.userPrompt },
-        ],
-        temperature: opts.temperature ?? 0.6,
-        max_tokens: opts.maxTokens ?? 3000,
-        response_format: { type: "json_object" },
-      },
-      { signal: controller.signal }
-    );
-
-    const rawContent = response.choices[0]?.message?.content || "";
-    const cleaned = stripReasoning(rawContent);
-    const jsonStr = extractJson(cleaned);
-    return tryFixAndParse(jsonStr) as T;
-  } finally {
-    clearTimeout(timer);
-  }
+  const rawContent = await callBananaRouterText({
+    systemPrompt: JSON_ONLY_PREFIX + opts.systemPrompt,
+    userPrompt: opts.userPrompt,
+    temperature: opts.temperature,
+    maxTokens: opts.maxTokens,
+    timeoutMs: opts.timeoutMs ?? SECTION_HARD_TIMEOUT_MS,
+  });
+  const cleaned = stripReasoning(rawContent);
+  const jsonStr = extractJson(cleaned);
+  return tryFixAndParse(jsonStr) as T;
 }
 
 /**
- * 章节 AI 调用的统一入口（讯飞星辰单路，失败自动重试最多 3 次）。
- * 讯飞 astron-code-latest 是代码生成专用模型，写中文长 JSON 偶发抽风（字段类型错 /
- * 数量不足 / 残缺 JSON），重试 1-2 次通常能拿到合格输出。
+ * 章节 AI 调用的统一入口（BananaRouter 单路，失败自动重试最多 3 次）。
+ * 长 JSON 偶尔会出现字段类型错、数量不足或残缺，重试 1-2 次通常能拿到合格输出。
  * 4 次（首次 + 3 次重试）都失败才抛错，由路由层兜底 mock。
  */
 export async function callWithFallback<T>(
@@ -167,7 +148,7 @@ export async function callWithFallback<T>(
   const { validator, ...callOpts } = opts;
 
   const attempt = async (): Promise<T> => {
-    const data = await callIflytekJson<T>(callOpts);
+    const data = await callBananaRouterJson<T>(callOpts);
     if (validator) {
       const issue = validator(data);
       if (issue) throw new Error(`内容校验失败: ${issue}`);
@@ -184,7 +165,7 @@ export async function callWithFallback<T>(
       lastErr = err;
       const msg = err instanceof Error ? err.message : String(err);
       if (i < MAX_RETRIES) {
-        console.warn(`[retry ${i + 1}/${MAX_RETRIES}] 讯飞失败，重试:`, msg);
+        console.warn(`[retry ${i + 1}/${MAX_RETRIES}] BananaRouter 失败，重试:`, msg);
       }
     }
   }

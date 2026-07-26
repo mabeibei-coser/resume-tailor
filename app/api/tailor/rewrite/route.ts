@@ -6,13 +6,13 @@
  *     ↓
  *   Step 1：parseResumeToJson(resumeText) → ResumeJSON           (lib/resume-parser.ts)
  *     ↓
- *   Step 2：MiniMax + 讯飞 fallback → DiffChange[]               (本文件 + lib/prompts/rewrite.ts)
+ *   Step 2：BananaRouter + 自动重试 → DiffChange[]               (本文件 + lib/prompts/rewrite.ts)
  *     ↓
  *   Step 3：validateDiffChanges(changes, ctx) → 标 flagged        (lib/diff-validator.ts)
  *     ↓
  *   返回 { resume: ResumeJSON, changes: DiffChange[] }
  *
- * 失败兜底：双 LLM 都挂时返 fallback mock + `fallback: true` 标记，避免前端白屏。
+ * 失败兜底：LLM 多次失败时返 fallback mock + `fallback: true` 标记，避免前端白屏。
  */
 import { NextResponse } from "next/server";
 
@@ -35,7 +35,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // ============================================================================
-// 兜底 mock —— 双路 LLM 都挂时用，避免前端白屏
+// 兜底 mock —— LLM 多次失败时用，避免前端白屏
 // ============================================================================
 
 const FALLBACK_RESUME: ResumeJSON = {
@@ -190,13 +190,13 @@ export async function POST(request: Request) {
       maxTokens: 4500,
       validator: validateRewriteResult,
     });
-    // normalize: iFlytek 对 delete 动作可能返回 null newText，统一转成 "" 供下游使用
+    // normalize: 模型对 delete 动作可能返回 null newText，统一转成 "" 供下游使用
     llmChanges = llmResult.changes.map((c) =>
       c.action === "delete" && c.newText == null ? { ...c, newText: "" } : c
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[rewrite] 双 LLM 均失败，返回兜底 mock（保留真实 resume）:", msg);
+    console.warn("[rewrite] BananaRouter 多次失败，返回兜底 mock（保留真实 resume）:", msg);
     const result: TailorRewriteResult & { fallback?: true } = {
       resume,
       changes: FALLBACK_CHANGES,

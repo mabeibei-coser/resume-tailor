@@ -193,7 +193,7 @@ function isChangeOk(c: DiffChange): boolean {
  * 校验 LLM 返回的 rewrite 结果。
  *
  * 策略：宽容过滤而非严格 fail-fast。
- * - 讯飞偶发抽风产出某条 change.newText 非字符串/空串时，先把这条剔掉再判断整体
+ * - 模型偶发产出某条 change.newText 非字符串/空串时，先把这条剔掉再判断整体
  * - 整体不达底线（< 3 条合格）才返回错误 → 重试
  * - 这样能让"8 条合格 + 2 条 newText 类型错"的输出落地，而不是触发兜底 mock
  *
@@ -210,7 +210,7 @@ export function validateRewriteResult(data: RewriteResult): string | null {
   data.changes = data.changes.filter(isChangeOk);
 
   if (data.changes.length < 3)
-    return `过滤后 changes 长度 ${data.changes.length}（讯飞抽风过滤后合规条目 < 3）`;
+    return `过滤后 changes 长度 ${data.changes.length}（模型输出过滤后合规条目 < 3）`;
 
   return null;
 }

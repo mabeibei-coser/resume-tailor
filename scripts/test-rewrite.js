@@ -120,7 +120,7 @@ async function runOne(mode) {
 
     const isFallback = data.fallback === true;
     if (isFallback) {
-      console.log(`!!! FALLBACK 触发（双 LLM 失败或 parser 失败）`);
+      console.log(`!!! FALLBACK 触发（LLM 多次失败或 parser 失败）`);
     }
 
     console.log(`耗时（客户端总）：${data._elapsedMs} ms`);

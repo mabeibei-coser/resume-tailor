@@ -3,8 +3,8 @@
  * ———————————————
  * 把 PDF/DOCX 提取出的纯文本简历 → ResumeJSON 结构化对象。
  *
- * 内部用 `callWithFallback`（MiniMax 主 + 讯飞 fallback）+ JSON mode + validator。
- * - SYSTEM / USER 静态部分前置（命中 MiniMax 自动 prefix cache）
+ * 内部用 `callWithFallback`（BananaRouter + 自动重试）+ JSON mode + validator。
+ * - SYSTEM / USER 静态部分前置（便于供应商做 prefix cache）
  * - resumeText 拼到 user message 末尾（命中缓存的不变前缀）
  * - validator：ResumeJSONSchema.safeParse + 占位符泄漏检测 + basics.name 非空
  * - temperature 0.3（结构化任务用低温度）
@@ -64,7 +64,7 @@ function findPlaceholderLeak(obj: unknown, path: string): string | null {
 /**
  * 校验 LLM 返回的解析结果是否合法。
  * 通过 → null
- * 失败 → 错误描述字符串（callWithFallback 据此切讯飞重试）
+ * 失败 → 错误描述字符串（callWithFallback 据此重试）
  */
 export function validateParseResult(data: ResumeJSON): string | null {
   if (!data || typeof data !== "object") return "data 不是对象";
@@ -93,7 +93,7 @@ export function validateParseResult(data: ResumeJSON): string | null {
  *
  * @param resumeText 从 PDF/DOCX 提取的纯文本（建议预先清洗：去掉分页符、页眉页脚噪声）
  * @returns 符合 ResumeJSON 标准的结构化对象
- * @throws 双路 LLM 都失败时抛 MiniMax 原始错误
+ * @throws BananaRouter 多次失败时抛出最后一次错误
  */
 export async function parseResumeToJson(resumeText: string): Promise<ResumeJSON> {
   if (!resumeText || !resumeText.trim()) {

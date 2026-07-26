@@ -17,7 +17,7 @@ import { test, expect, type Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 
-const BASE = "http://localhost:3001";
+const BASE = "http://localhost:3001/a100";
 
 // ── 辅助：注入 mock sessionStorage，绕过"无报告→重定向 /loading"守卫 ──────────
 async function injectMockReport(page: Page) {
@@ -134,7 +134,7 @@ test.describe("A · Form 页", () => {
 
   test("表单验证：空提交显示错误提示", async ({ page }) => {
     await page.goto(`${BASE}/form`);
-    await page.getByRole("button", { name: /开始优化/ }).click();
+    await page.getByRole("button", { name: /生成我的定制简历/ }).click();
     // 至少显示一条错误信息（取第一个匹配）
     await expect(page.getByText(/请输入|请先上传|JD 至少/).first()).toBeVisible();
   });
@@ -207,16 +207,14 @@ test.describe("D · Report 页", () => {
     expect(reactCrash).toBe(false);
   });
 
-  test("注入 mock 数据 → 4 块内容渲染", async ({ page }) => {
+  test("注入 mock 数据 → 核心内容渲染", async ({ page }) => {
     await page.goto(`${BASE}/report`);
     await injectMockReport(page);
     await page.reload();
     await page.waitForTimeout(1000);
 
-    // 4 块标题 — 用 heading 角色或限定范围避免重复匹配
-    await expect(page.getByRole("heading", { name: /优化建议|简历建议/ })).toBeVisible({ timeout: 8000 });
-    await expect(page.getByRole("heading", { name: /改写明细|修改详情/ })).toBeVisible({ timeout: 8000 });
-    await expect(page.getByRole("heading", { name: /面试/ })).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("heading", { name: /简历问题项/ })).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("heading", { name: /面试问答/ })).toBeVisible({ timeout: 8000 });
     await expect(page.getByRole("button", { name: /下载/ }).or(page.getByText(/下载/).first())).toBeVisible({ timeout: 8000 });
   });
 

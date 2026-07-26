@@ -1,13 +1,13 @@
 /**
  * /api/tailor/analyze
- * Step 10：接入真实 LLM（MiniMax 主 + 讯飞 fallback）
+ * Step 10：接入真实 LLM（BananaRouter + 自动重试）
  * 输入：{ formData: TailorFormData }
  * 输出：{ data: TailorAnalyzeResult } 形如 { suggestions: 1-5, interview: 5 }
  *
  * 关键稳定性：
  * - 用 callWithFallback：JSON_ONLY_PREFIX + response_format json_object + AbortController 50s 超时
- * - validator 校验通过才返回，否则切讯飞重试
- * - 双 LLM 都失败时返兜底 mock，不让前端白屏（与 report-client.ts 的 ANALYZE_FALLBACK 对齐风格）
+ * - validator 校验通过才返回，否则自动重试
+ * - 多次失败时返兜底 mock，不让前端白屏（与 report-client.ts 的 ANALYZE_FALLBACK 对齐风格）
  */
 import { NextResponse } from "next/server";
 
@@ -22,7 +22,7 @@ import type { TailorAnalyzeResult, TailorFormData } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// 双 LLM 都挂时的兜底（避免白屏；上线后应该极少触发）
+// LLM 多次失败时的兜底（避免白屏；上线后应该极少触发）
 // Step 24：mock 质量补足 — 即使 AI 暂不可用，用户也能拿到一份"通用模板版"建议 + 5 题面试预演
 // 不带 mode 区分（兜底场景下不绑死风格），文案是泛行业通用 + 强调"模板"属性
 const FALLBACK: TailorAnalyzeResult = {
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ data });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.warn("[analyze] 双 LLM 均失败，返回兜底 mock:", msg);
+    console.warn("[analyze] BananaRouter 多次失败，返回兜底 mock:", msg);
     return NextResponse.json({ data: FALLBACK });
     // 注：FALLBACK 自带 fallback: true，前端 / Step 25 错误 UI 可据此提示降级模式
   }
