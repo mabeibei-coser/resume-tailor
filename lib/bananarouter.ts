@@ -1,5 +1,10 @@
-const DEFAULT_BASE_URL = "https://api.bananarouter.com";
-const DEFAULT_MODEL = "gemini-3.1-flash-lite";
+import {
+  getEnvBananaRouterConfig,
+  reportA100CredentialEvent,
+  resolveA100Credential,
+  type A100CredentialEvent,
+  type A100ResolvedCredential,
+} from "./credential-hub-client.ts";
 
 export interface BananaRouterConfig {
   apiKey: string;
@@ -15,21 +20,17 @@ export interface BananaRouterTextOptions {
   timeoutMs?: number;
 }
 
-interface BananaRouterDependencies {
+export interface BananaRouterDependencies {
   config?: BananaRouterConfig;
   fetchImpl?: typeof fetch;
+  resolveConfig?: () => Promise<A100ResolvedCredential>;
+  reportEvent?: (event: A100CredentialEvent) => Promise<void>;
 }
 
 export function getBananaRouterConfig(
-  env: NodeJS.ProcessEnv = process.env
+  env: Readonly<Record<string, string | undefined>> = process.env
 ): BananaRouterConfig | null {
-  const apiKey = env.BANANAROUTER_API_KEY?.trim();
-  if (!apiKey) return null;
-  return {
-    apiKey,
-    baseURL: (env.BANANAROUTER_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, ""),
-    model: env.BANANAROUTER_MODEL ?? DEFAULT_MODEL,
-  };
+  return getEnvBananaRouterConfig(env);
 }
 
 function extractCandidateText(payload: unknown): string {
@@ -56,13 +57,20 @@ export async function callBananaRouterText(
   opts: BananaRouterTextOptions,
   dependencies: BananaRouterDependencies = {}
 ): Promise<string> {
-  const config = dependencies.config ?? getBananaRouterConfig();
-  if (!config) throw new Error("BananaRouter 未配置");
+  const resolved: A100ResolvedCredential = dependencies.config
+    ? { ...dependencies.config, source: "env" }
+    : dependencies.resolveConfig
+      ? await dependencies.resolveConfig()
+      : await resolveA100Credential();
+  const config: BananaRouterConfig = resolved;
 
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 50_000);
   const endpoint = `${config.baseURL}/v1beta/models/${encodeURIComponent(config.model)}:generateContent`;
+  const startedAt = Date.now();
+  let eventStatus: "success" | "error" = "error";
+  let errorCategory: string | null = "network_error";
 
   try {
     const response = await fetchImpl(endpoint, {
@@ -84,6 +92,12 @@ export async function callBananaRouterText(
     });
 
     if (!response.ok) {
+      errorCategory =
+        response.status === 401 || response.status === 403
+          ? "unauthorized"
+          : response.status === 429
+            ? "rate_limited"
+            : "provider_error";
       throw new Error(`BananaRouter 请求失败（HTTP ${response.status}）`);
     }
 
@@ -91,20 +105,46 @@ export async function callBananaRouterText(
     try {
       payload = await response.json();
     } catch {
+      errorCategory = "invalid_response";
       throw new Error("BananaRouter 返回了无效 JSON");
     }
     const content = extractCandidateText(payload);
-    if (!content) throw new Error("BananaRouter 返回内容为空");
+    if (!content) {
+      errorCategory = "invalid_response";
+      throw new Error("BananaRouter 返回内容为空");
+    }
+    eventStatus = "success";
+    errorCategory = null;
     return content;
   } catch (error) {
     if (controller.signal.aborted) {
+      errorCategory = "timeout";
       throw new Error("BananaRouter 请求超时");
     }
     if (error instanceof Error && error.message.startsWith("BananaRouter")) {
       throw error;
     }
+    errorCategory = "network_error";
     throw new Error("BananaRouter 请求失败");
   } finally {
     clearTimeout(timer);
+    if (
+      resolved.source === "hub" &&
+      resolved.bindingId != null &&
+      resolved.credentialVersion != null
+    ) {
+      const event: A100CredentialEvent = {
+        bindingId: resolved.bindingId,
+        credentialVersion: resolved.credentialVersion,
+        status: eventStatus,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        errorCategory,
+      };
+      try {
+        await (dependencies.reportEvent ?? reportA100CredentialEvent)(event);
+      } catch {
+        // 事件上报失败不能覆盖业务请求的成功或原始错误。
+      }
+    }
   }
 }

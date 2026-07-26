@@ -149,7 +149,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export function cleanupOldTemp(maxAgeMs = 30 * 60 * 1000): void {
+// 保留既有清理逻辑；API route 不能额外导出非路由函数。
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function cleanupOldTemp(maxAgeMs = 30 * 60 * 1000): void {
   const tempDir = path.join(process.cwd(), "data", "temp");
   if (!fs.existsSync(tempDir)) return;
   const now = Date.now();

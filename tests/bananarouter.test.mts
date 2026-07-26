@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// @ts-expect-error Node 24 的类型剥离测试直接加载项目 TypeScript 源文件。
 import {
   callBananaRouterText,
   getBananaRouterConfig,
 } from "../lib/bananarouter.ts";
+import type { A100CredentialEvent } from "../lib/credential-hub-client.ts";
 
 const config = {
   apiKey: "test-key-not-a-secret",
@@ -77,4 +77,67 @@ test("空候选响应会安全失败", async () => {
     ),
     /返回内容为空/
   );
+});
+
+test("hub 凭证调用后只上报版本、状态和耗时", async () => {
+  const events: A100CredentialEvent[] = [];
+  const text = await callBananaRouterText(
+    { systemPrompt: "system-sensitive", userPrompt: "user-sensitive" },
+    {
+      resolveConfig: async () => ({
+        apiKey: "hub-call-test-key",
+        baseURL: "https://api.bananarouter.com",
+        model: "gemini-3.1-flash-lite",
+        source: "hub",
+        bindingId: 9,
+        credentialVersion: 4,
+      }),
+      fetchImpl: (async () =>
+        new Response(
+          JSON.stringify({ candidates: [{ content: { parts: [{ text: "OK" }] } }] }),
+          { status: 200 },
+        )) as typeof fetch,
+      reportEvent: async (event) => {
+        events.push(event);
+      },
+    },
+  );
+  assert.equal(text, "OK");
+  assert.equal(events.length, 1);
+  assert.deepEqual(Object.keys(events[0]).sort(), [
+    "bindingId",
+    "credentialVersion",
+    "errorCategory",
+    "latencyMs",
+    "status",
+  ]);
+  assert.equal(events[0].status, "success");
+  assert.equal(JSON.stringify(events).match(/system-sensitive|user-sensitive|hub-call-test-key/), null);
+});
+
+test("hub 上游 401 上报 unauthorized，事件上报失败不覆盖原错误", async () => {
+  const events: A100CredentialEvent[] = [];
+  await assert.rejects(
+    callBananaRouterText(
+      { systemPrompt: "system", userPrompt: "user" },
+      {
+        resolveConfig: async () => ({
+          apiKey: "hub-error-test-key",
+          baseURL: "https://api.bananarouter.com",
+          model: "gemini-3.1-flash-lite",
+          source: "hub",
+          bindingId: 9,
+          credentialVersion: 5,
+        }),
+        fetchImpl: (async () => new Response("{}", { status: 401 })) as typeof fetch,
+        reportEvent: async (reported) => {
+          events.push(reported);
+          throw new Error("event failed");
+        },
+      },
+    ),
+    /HTTP 401/,
+  );
+  assert.equal(events[0]?.status, "error");
+  assert.equal(events[0]?.errorCategory, "unauthorized");
 });
