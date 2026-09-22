@@ -63,3 +63,5 @@ id_ed25519*
 **/.ssh/
 # Windows 路径在 Git Bash 里被错误解析时留下的残片（如 "C:Users..."）
 C\:*
+
+.planning/_system/
