@@ -6,7 +6,7 @@
 <!-- EXPERIENCE_INDEX_START -->
 | 编号 | 问题 / 复用场景 | 原因状态 |
 |---|---|---|
-| [A100-K001](#a100-k001) | 动态朗读无声、missing Authorization header、旧接口资源不匹配 | 协议缺陷已确认；本地已修复，未发布 |
+| [A100-K001](#a100-k001) | 动态朗读无声、missing Authorization header、旧接口资源不匹配 | 协议缺陷已确认；已发布并验证真实合成 |
 <!-- EXPERIENCE_INDEX_END -->
 
 ## 经验条目
@@ -33,3 +33,11 @@
 
 ## 本轮独立复核
 - 2026-09-22：a300_readonly_review只读检查六项目协议、重试边界、A900语速、C100模块兼容及项目入口可发现性，未发现阻断问题。未独立重跑测试、未验证实际发布或真机播放。
+
+## 2026-09-22 发布验收（更新前述待发布状态）
+- 版本 v0.5.23，发布源码 f05b29cb93acac3577c0fb4a3d7479e8d9bcb8d7；本地tag/GitHub tag/生产发布源码已核对。服务器准确源码语音契约及生产构建通过，隔离实例真实合成成功后才切换；生产接口返回MP3 50157字节/6.264秒、24000Hz，解码peak=0.3844。
+- 正式HTTPS页面最后一跳200、Chromium资源无400+响应，生产接口音频在浏览器AudioContext整段播放至ended，nonSilent=true；未做真机扬声器听感验收，不把播放探针当成全业务回归。A200使用60秒虚构会话检查受保护TTS，不写用户/报告数据库。
+- 回滚构建：/var/tmp/codex-cross-tts-release-20260922/A100-1790088335/previous.next；旧源码 eeabcd20458d80de69976594a701b99dbe1f2351。发布后新增错误日志0字节，其他PM2进程PID未改变。未改生产env/业务数据/静态音频；A000/A100额外验证正式源码实时合成。
+- 证据：/var/tmp/codex-cross-tts-release-20260922/A100-1790088335 下canary-check.json、production-check.json及build.log；本机Temp/codex-cross-tts-20260922/A100-browser.json。
+- 首次网页探针因Python3.10不处理308而触发回滚（语音已通过）；改用curl跟随跳转后重发成功，保留失败与回滚证据。
+- 发布前已快进到当时现网版本，保留现有业务更新；同步来的其他上游变更不因本次语音维护而登记为已审历史。
